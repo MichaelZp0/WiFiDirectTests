@@ -4,18 +4,36 @@
 #include <winrt/Windows.Networking.Sockets.h>
 #include <winrt/Windows.Devices.Enumeration.h>
 #include <winrt/Windows.Storage.Streams.h>
+#include <winrt/Windows.Security.Credentials.h>
 #include <iostream>
 
 using namespace winrt;
 using namespace Windows::Foundation;
 using namespace Windows::Devices::WiFiDirect;
 using namespace Windows::Networking::Sockets;
-using namespace winrt::Windows::Storage::Streams;
+using namespace Windows::Storage::Streams;
+using namespace Windows::Devices::Enumeration;
+using namespace Windows::Security::Credentials;
 
 void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirectConnectionRequestedEventArgs const &connectionEventArgs)
 {
     auto connectionRequest = connectionEventArgs.GetConnectionRequest();
     std::wcout << L"Connection requested from: " << connectionRequest.DeviceInformation().Name().c_str() << std::endl;
+
+    DeviceInformation info = connectionRequest.DeviceInformation();
+    
+    DeviceInformationCustomPairing customPairingInfo = info.Pairing().Custom();
+
+    customPairingInfo.PairingRequested([](DeviceInformationCustomPairing const& sender, DevicePairingRequestedEventArgs const& args) {
+        PasswordCredential credential;
+        credential.UserName(L"testUser");
+        credential.Password(L"testPass1234");
+        args.AcceptWithPasswordCredential(credential);
+        });
+
+    customPairingInfo.PairAsync(DevicePairingKinds::ProvidePasswordCredential).get();
+
+    return;
 
     WiFiDirectDevice wfdDevice = WiFiDirectDevice::FromIdAsync(connectionRequest.DeviceInformation().Id()).get();
     StreamSocketListener listener;
@@ -48,31 +66,31 @@ int main()
         });
 
     // Add publisher IE
-    WiFiDirectInformationElement IE;
+    //WiFiDirectInformationElement IE;
 
-    param::hstring IE_String = L"IE_String";
+    //param::hstring IE_String = L"IE_String";
 
-    DataWriter dataWriter;
-    dataWriter.UnicodeEncoding(UnicodeEncoding::Utf8);
-    dataWriter.ByteOrder(ByteOrder::LittleEndian);
-    dataWriter.WriteUInt32(dataWriter.MeasureString(IE_String));
-    dataWriter.WriteString(IE_String);
-    IE.Value(dataWriter.DetachBuffer());
+    //DataWriter dataWriter;
+    //dataWriter.UnicodeEncoding(UnicodeEncoding::Utf8);
+    //dataWriter.ByteOrder(ByteOrder::LittleEndian);
+    //dataWriter.WriteUInt32(dataWriter.MeasureString(IE_String));
+    //dataWriter.WriteString(IE_String);
+    //IE.Value(dataWriter.DetachBuffer());
 
-    const char* customOuiStr = "CustomOui_Txt";
-    std::array<uint8_t, 13> customOuiStdArr{};
-    for (int i = 0; i < customOuiStdArr.size(); ++i)
-    {
-        customOuiStdArr[i] = static_cast<uint8_t>(customOuiStr[i]);
-    }
+    //const char* customOuiStr = "CustomOui_Txt";
+    //std::array<uint8_t, 13> customOuiStdArr{};
+    //for (int i = 0; i < customOuiStdArr.size(); ++i)
+    //{
+    //    customOuiStdArr[i] = static_cast<uint8_t>(customOuiStr[i]);
+    //}
 
-    DataWriter dataWriterOUI;
-    dataWriterOUI.WriteBytes(customOuiStdArr);
-    IE.Oui(dataWriterOUI.DetachBuffer());
+    //DataWriter dataWriterOUI;
+    //dataWriterOUI.WriteBytes(customOuiStdArr);
+    //IE.Oui(dataWriterOUI.DetachBuffer());
 
-    IE.OuiType(0xDD);
+    //IE.OuiType(0xDD);
 
-    publisher.Advertisement().InformationElements().Append(IE);
+    //publisher.Advertisement().InformationElements().Append(IE);
 
     WiFiDirectConnectionListener listener;
     listener.ConnectionRequested(OnConnectionRequested);
