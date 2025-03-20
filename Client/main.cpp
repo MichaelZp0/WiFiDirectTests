@@ -20,7 +20,7 @@ winrt::hstring serverPort = L"50001";
 
 void OnDeviceAdded(DeviceWatcher const& watcher, DeviceInformation const& deviceInfo)
 {
-    std::wcout << L"Device found: " << deviceInfo.Name().c_str() << std::endl;
+    std::wcout << L"Device found: " << deviceInfo.Name().c_str() << " - " << deviceInfo.Id().c_str() << std::endl;
     foundDevices.push_back(deviceInfo);
 }
 
@@ -55,23 +55,17 @@ void ConnectToDevice(DeviceInformation& info)
         args.AcceptWithPasswordCredential(credential);
         });
 
-    //customPairingInfo.PairAsync(DevicePairingKinds::ProvidePasswordCredential).get();
+    customPairingInfo.PairAsync(DevicePairingKinds::ProvidePasswordCredential).get();
 
-    return;
-
-    bool gotDevice = false;
+    WiFiDirectDevice wfdDevice = nullptr;
     IAsyncOperation<WiFiDirectDevice> task = WiFiDirectDevice::FromIdAsync(info.Id());
-    task.wait_for(TimeSpan(5s));
-    //task.Completed([&gotDevice](auto const& handler) {
-    //    gotDevice = true;
-    //    });
 
-    //while (!gotDevice)
-    //{
-    //    std::this_thread::sleep_for(10ms);
-    //}
+    wfdDevice = task.get();
 
-    WiFiDirectDevice wfdDevice = task.GetResults();
+    if (wfdDevice == nullptr)
+    {
+        return;
+    }
 
     wfdDevice.ConnectionStatusChanged([](WiFiDirectDevice const& sender, winrt::Windows::Foundation::IInspectable const& args)
     {
@@ -99,7 +93,7 @@ int main()
 {
     init_apartment();
 
-    winrt::hstring deviceSelector = WiFiDirectDevice::GetDeviceSelector(WiFiDirectDeviceSelectorType::DeviceInterface);
+    winrt::hstring deviceSelector = WiFiDirectDevice::GetDeviceSelector(WiFiDirectDeviceSelectorType::AssociationEndpoint);
     std::vector<winrt::hstring> requestProperties;
     requestProperties.push_back(L"System.Devices.WiFiDirect.InformationElements");
 
@@ -112,11 +106,13 @@ int main()
     deviceWatcher.Stopped(OnStopped);
 
     deviceWatcher.Start();
+    bool watcherIsStarted = true;
 
     std::wcout << L"Searching for WiFi Direct devices..." << std::endl;
 
     std::cout << "1 - List Devices" << std::endl;
     std::cout << "2 x - Connect to Device number x" << std::endl;
+    std::cout << "3 [start|stop] - Start/stop the device watcher" << std::endl;
 
     while (true)
     {
@@ -126,9 +122,11 @@ int main()
 
         if (input == "1")
         {
+            int counter = 1;
             for (auto& device : foundDevices)
             {
-                std::wcout << device.Name().c_str() << std::endl;
+                std::wcout << counter << " - " << device.Name().c_str() << std::endl;
+                ++counter;
             }
         }
         else if (input._Starts_with("2"))
@@ -151,6 +149,41 @@ int main()
 
             std::wcout << "Connect to device number " << idx << " with name " << foundDevices[idx - 1].Name().c_str() << std::endl;
             ConnectToDevice(foundDevices[idx - 1]);
+        }
+        else if (input._Starts_with("3"))
+        {
+            std::string command = input.substr(2);
+
+            if (command == "stop")
+            {
+                if (watcherIsStarted)
+                {
+                    deviceWatcher.Stop();
+                    watcherIsStarted = false;
+                    std::cout << "Stopped watcher\n";
+                }
+                else
+                {
+                    std::cout << "Watcher was already stopped\n";
+                }
+            }
+            else if (command == "start")
+            {
+                if (!watcherIsStarted)
+                {
+                    deviceWatcher.Start();
+                    watcherIsStarted = true;
+                    std::cout << "Started watcher\n";
+                }
+                else
+                {
+                    std::cout << "Watcher was already started\n";
+                }
+            }
+            else
+            {
+                std::cout << "Unknown argument. Please only use stop or start.\n";
+            }
         }
         else if (input == "q" || input == "quit" || input == "e" || input == "exit")
         {
