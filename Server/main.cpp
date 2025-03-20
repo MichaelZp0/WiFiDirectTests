@@ -31,10 +31,6 @@ void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirec
         args.AcceptWithPasswordCredential(credential);
         });
 
-    customPairingInfo.PairAsync(DevicePairingKinds::ProvidePasswordCredential).get();
-
-    return;
-
     WiFiDirectDevice wfdDevice = WiFiDirectDevice::FromIdAsync(connectionRequest.DeviceInformation().Id()).get();
     StreamSocketListener listener;
     listener.ConnectionReceived([](StreamSocketListener const& listener, StreamSocketListenerConnectionReceivedEventArgs const& args)
