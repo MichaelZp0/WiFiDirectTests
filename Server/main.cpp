@@ -9,6 +9,7 @@
 
 #include "socketReaderWriter.h"
 #include "constants.h"
+#include "globalOutput.h"
 
 using namespace winrt;
 using namespace Windows::Foundation;
@@ -21,7 +22,10 @@ using namespace Windows::Security::Credentials;
 void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirectConnectionRequestedEventArgs const &connectionEventArgs)
 {
     auto connectionRequest = connectionEventArgs.GetConnectionRequest();
-    std::wcout << L"Connection requested from: " << connectionRequest.DeviceInformation().Name().c_str() << std::endl;
+
+    GlobalOutput::WriteLocked([&connectionRequest]() {
+        std::wcout << L"Connection requested from: " << connectionRequest.DeviceInformation().Name().c_str() << std::endl;
+    });
 
     DeviceInformation info = connectionRequest.DeviceInformation();
     
@@ -44,20 +48,20 @@ void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirec
     StreamSocketListener listener;
     listener.ConnectionReceived([](StreamSocketListener const& listener, StreamSocketListenerConnectionReceivedEventArgs const& args)
         {
-            std::wcout << L"Connection received!" << std::endl;
+            GlobalOutput::WriteLocked(L"Connection received!\n");
             // Handle the incoming connection
 
             SocketReaderWriter sockReadWrite(args.Socket());
             sockReadWrite.WriteMessage(L"Client says hello.");
             sockReadWrite.ReadMessage();
 
-            std::cout << "Messaging done! Disconnecting." << std::endl;
+            GlobalOutput::WriteLocked("Messaging done! Disconnecting.\n");
 
             sockReadWrite.Close();
         });
 
     listener.BindEndpointAsync(wfdDevice.GetConnectionEndpointPairs().GetAt(0).LocalHostName(), serverPort);
-    std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl;
+    GlobalOutput::WriteLocked([]() { std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl; });
 }
 
 int main()
@@ -75,7 +79,7 @@ int main()
 
     publisher.StatusChanged([](WiFiDirectAdvertisementPublisher const& publisher, WiFiDirectAdvertisementPublisherStatusChangedEventArgs const& args)
         {
-            std::wcout << L"Advertisement status: " << static_cast<int32_t>(args.Status()) << std::endl;
+            GlobalOutput::WriteLocked([&args]() { std::wcout << L"Advertisement status: " << static_cast<int32_t>(args.Status()) << std::endl; });
         });
 
     // Add publisher IE
@@ -109,14 +113,14 @@ int main()
     listener.ConnectionRequested(OnConnectionRequested);
 
     publisher.Start();
-    std::wcout << L"Started WiFi Direct advertisement..." << std::endl;
+    GlobalOutput::WriteLocked(L"Started WiFi Direct advertisement...\n");
 
     // Keep the application running to allow asynchronous operations to complete
     std::string input;
     std::getline(std::cin, input);
 
     publisher.Stop();
-    std::wcout << L"Stopped WiFi Direct advertisement." << std::endl;
+    GlobalOutput::WriteLocked(L"Stopped WiFi Direct advertisement.\n");
 
     return 0;
 }

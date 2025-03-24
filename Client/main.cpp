@@ -5,8 +5,10 @@
 #include <winrt/Windows.Security.Credentials.h>
 #include <iostream>
 #include <chrono>
+
 #include "socketReaderWriter.h"
 #include "constants.h"
+#include "globalOutput.h"
 
 using namespace std::chrono_literals;
 
@@ -21,28 +23,28 @@ std::vector<DeviceInformation> foundDevices;
 
 void OnDeviceAdded(DeviceWatcher const& watcher, DeviceInformation const& deviceInfo)
 {
-    std::wcout << L"Device found: " << deviceInfo.Name().c_str() << " - " << deviceInfo.Id().c_str() << std::endl;
+    GlobalOutput::WriteLocked([&deviceInfo]() { std::wcout << L"Device found: " << deviceInfo.Name().c_str() << " - " << deviceInfo.Id().c_str() << std::endl; });
     foundDevices.push_back(deviceInfo);
 }
 
 void OnDeviceRemoved(DeviceWatcher const& watcher, DeviceInformationUpdate const& deviceInfoUpdate)
 {
-    std::wcout << L"Device removed: " << deviceInfoUpdate.Id().c_str() << std::endl;
+    GlobalOutput::WriteLocked([&deviceInfoUpdate]() { std::wcout << L"Device removed: " << deviceInfoUpdate.Id().c_str() << std::endl; });
 }
 
 void OnDeviceUpdated(DeviceWatcher const& watcher, DeviceInformationUpdate const& deviceInfoUpdate)
 {
-    std::wcout << L"Device updated: " << deviceInfoUpdate.Id().c_str() << std::endl;
+    GlobalOutput::WriteLocked([&deviceInfoUpdate]() { std::wcout << L"Device updated: " << deviceInfoUpdate.Id().c_str() << std::endl; });
 }
 
 void OnEnumerationCompleted(DeviceWatcher const& watcher, winrt::Windows::Foundation::IInspectable const& deviceInfo)
 {
-    std::wcout << L"Device enumeration completed: " << std::endl;
+    GlobalOutput::WriteLocked([&deviceInfo]() { std::wcout << L"Device enumeration completed: " << std::endl; });
 }
 
 void OnStopped(DeviceWatcher const& watcher, winrt::Windows::Foundation::IInspectable const& deviceInfo)
 {
-    std::wcout << L"DeviceWatcher stopped: " << std::endl;
+    GlobalOutput::WriteLocked([&deviceInfo]() { std::wcout << L"DeviceWatcher stopped: " << std::endl; });
 }
 
 void ConnectToDevice(DeviceInformation& info)
@@ -70,30 +72,32 @@ void ConnectToDevice(DeviceInformation& info)
 
     wfdDevice.ConnectionStatusChanged([](WiFiDirectDevice const& sender, winrt::Windows::Foundation::IInspectable const& args)
     {
-        std::wcout << "Connection status changed: " << static_cast<int32_t>(sender.ConnectionStatus()) << std::endl;
+        GlobalOutput::WriteLocked([&sender]() { std::wcout << "Connection status changed: " << static_cast<int32_t>(sender.ConnectionStatus()) << std::endl; });
     });
 
     auto endpointPairs = wfdDevice.GetConnectionEndpointPairs();
 
-    std::wcout << "Connected to device with IP " << endpointPairs.GetAt(0).RemoteHostName().DisplayName().c_str() << " on port " << serverPort.c_str() << std::endl;
+    GlobalOutput::WriteLocked([&endpointPairs]() {
+        std::wcout << "Connected to device with IP " << endpointPairs.GetAt(0).RemoteHostName().DisplayName().c_str() << " on port " << serverPort.c_str() << std::endl;
+    });
 
-    std::cout << "Waiting for server to start listening...";
+    GlobalOutput::WriteLocked("Waiting for server to start listening...\n");
 
     // Wait for server to start listening on a socket
     std::this_thread::sleep_for(5s);
 
-    std::cout << "Connecting to server..." << std::endl;
+    GlobalOutput::WriteLocked("Connecting to server...\n");
 
     StreamSocket clientSocket;
     clientSocket.ConnectAsync(endpointPairs.GetAt(0).RemoteHostName(), serverPort).get();
 
-    std::cout << "Connected to server!" << std::endl;
+    GlobalOutput::WriteLocked("Connected to server!\n");
 
     SocketReaderWriter sockReadWrite(clientSocket);
     sockReadWrite.ReadMessage();
     sockReadWrite.WriteMessage(L"Server says hello.");
 
-    std::cout << "Messaging done! Disconnecting." << std::endl;
+    GlobalOutput::WriteLocked("Messaging done! Disconnecting.\n");
 
     sockReadWrite.Close();
 }
@@ -117,11 +121,11 @@ int main()
     deviceWatcher.Start();
     bool watcherIsStarted = true;
 
-    std::wcout << L"Searching for WiFi Direct devices..." << std::endl;
+    GlobalOutput::WriteLocked(L"Searching for WiFi Direct devices...\n");
 
-    std::cout << "1 - List Devices" << std::endl;
-    std::cout << "2 x - Connect to Device number x" << std::endl;
-    std::cout << "3 [start|stop] - Start/stop the device watcher" << std::endl;
+    GlobalOutput::WriteLocked("1 - List Devices\n");
+    GlobalOutput::WriteLocked("2 x - Connect to Device number x\n");
+    GlobalOutput::WriteLocked("3 [start|stop] - Start/stop the device watcher\n");
 
     while (true)
     {
@@ -147,16 +151,18 @@ int main()
             }
             catch (std::invalid_argument const& ex)
             {
-                std::cout << "std::invalid_argument::what(): " << ex.what() << '\n';
+                GlobalOutput::WriteLocked([&ex]() { std::cout << "std::invalid_argument::what(): " << ex.what() << '\n'; });
                 continue;
             }
             catch (std::out_of_range const& ex)
             {
-                std::cout << "std::out_of_range::what(): " << ex.what() << '\n';
+                GlobalOutput::WriteLocked([&ex]() { std::cout << "std::out_of_range::what(): " << ex.what() << '\n'; });
                 continue;
             }
 
-            std::wcout << "Connect to device number " << idx << " with name " << foundDevices[idx - 1].Name().c_str() << std::endl;
+            GlobalOutput::WriteLocked([&idx]() {
+                std::wcout << "Connect to device number " << idx << " with name " << foundDevices[idx - 1].Name().c_str() << std::endl;
+            });
             ConnectToDevice(foundDevices[idx - 1]);
         }
         else if (input._Starts_with("3"))
@@ -169,11 +175,11 @@ int main()
                 {
                     deviceWatcher.Stop();
                     watcherIsStarted = false;
-                    std::cout << "Stopped watcher\n";
+                    GlobalOutput::WriteLocked("Stopped watcher\n");
                 }
                 else
                 {
-                    std::cout << "Watcher was already stopped\n";
+                    GlobalOutput::WriteLocked("Watcher was already stopped\n");
                 }
             }
             else if (command == "start")
@@ -182,16 +188,16 @@ int main()
                 {
                     deviceWatcher.Start();
                     watcherIsStarted = true;
-                    std::cout << "Started watcher\n";
+                    GlobalOutput::WriteLocked("Started watcher\n");
                 }
                 else
                 {
-                    std::cout << "Watcher was already started\n";
+                    GlobalOutput::WriteLocked("Watcher was already started\n");
                 }
             }
             else
             {
-                std::cout << "Unknown argument. Please only use stop or start.\n";
+                GlobalOutput::WriteLocked("Unknown argument. Please only use stop or start.\n");
             }
         }
         else if (input == "q" || input == "quit" || input == "e" || input == "exit")
@@ -200,8 +206,9 @@ int main()
         }
     }
 
-
     deviceWatcher.Stop();
+
+    GlobalOutput::WriteLocked("Exiting");
 
     return 0;
 }
