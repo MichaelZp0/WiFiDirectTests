@@ -47,8 +47,9 @@ void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirec
         return;
     }
 
-    wfdDevice.ConnectionStatusChanged([](auto const& sender, auto const& args) {
-        GlobalOutput.WriteLocked("Connection status changed: " + sender->ConnectionStatus.ToString() + "\n");
+    wfdDevice.ConnectionStatusChanged([](WiFiDirectDevice const& sender, auto const& args) {
+        uint32_t status = static_cast<uint32_t>(sender.ConnectionStatus());
+        GlobalOutput::WriteLocked([&status]() { std::cout << "Connection status changed: " << status << "\n"; });
     });
 
     StreamSocketListener listener;
