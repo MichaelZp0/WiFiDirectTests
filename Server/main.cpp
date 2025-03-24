@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include "socketReaderWriter.h"
+#include "constants.h"
 
 using namespace winrt;
 using namespace Windows::Foundation;
@@ -55,8 +56,8 @@ void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirec
             sockReadWrite.Close();
         });
 
-    listener.BindServiceNameAsync(L"50001").get();
-    std::wcout << L"Listening for incoming connections on port 50001..." << std::endl;
+    listener.BindEndpointAsync(wfdDevice.GetConnectionEndpointPairs().GetAt(0).LocalHostName(), serverPort);
+    std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl;
 }
 
 int main()
