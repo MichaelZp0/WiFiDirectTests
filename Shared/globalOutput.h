@@ -1,6 +1,9 @@
 #ifndef GLOBAL_OUTPUT_H
 #define GLOBAL_OUTPUT_H
 
+#include "pch.h"
+
+#include <iostream>
 #include <mutex>
 #include <functional>
 
