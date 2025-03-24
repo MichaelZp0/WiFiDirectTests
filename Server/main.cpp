@@ -47,6 +47,10 @@ void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirec
         return;
     }
 
+    wfdDevice.ConnectionStatusChanged([](auto const& sender, auto const& args) {
+        GlobalOutput.WriteLocked("Connection status changed: " + sender->ConnectionStatus.ToString() + "\n");
+    });
+
     StreamSocketListener listener;
     bool connectionReceived = false;
     listener.ConnectionReceived([&connectionReceived](StreamSocketListener const& listener, StreamSocketListenerConnectionReceivedEventArgs const& args)
@@ -64,12 +68,13 @@ void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirec
             sockReadWrite.Close();
         });
 
-    listener.BindEndpointAsync(wfdDevice.GetConnectionEndpointPairs().GetAt(0).LocalHostName(), serverPort).get();
+    auto task = listener.BindEndpointAsync(wfdDevice.GetConnectionEndpointPairs().GetAt(0).LocalHostName(), serverPort);
     GlobalOutput::WriteLocked([]() { std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl; });
 
-    for (int i = 0; i < 200 && !connectionReceived; ++i)
+    for (int i = 0; i < 40 && !connectionReceived; ++i)
     {
-        std::this_thread::sleep_for(100ms);
+        std::this_thread::sleep_for(500ms);
+        GlobalOutput::WriteLocked(static_cast<uint32_t>(task.Status()) + "");
     }
 }
 
