@@ -5,6 +5,8 @@
 #include <winrt/Windows.Security.Credentials.h>
 #include <iostream>
 #include <chrono>
+#include "socketReaderWriter.h"
+#include "constants.h"
 
 using namespace std::chrono_literals;
 
@@ -16,7 +18,6 @@ using namespace Windows::Networking::Sockets;
 using namespace Windows::Security::Credentials;
 
 std::vector<DeviceInformation> foundDevices;
-winrt::hstring serverPort = L"50001";
 
 void OnDeviceAdded(DeviceWatcher const& watcher, DeviceInformation const& deviceInfo)
 {
@@ -87,6 +88,14 @@ void ConnectToDevice(DeviceInformation& info)
     clientSocket.ConnectAsync(endpointPairs.GetAt(0).RemoteHostName(), serverPort).get();
 
     std::cout << "Connected to server!" << std::endl;
+
+    SocketReaderWriter sockReadWrite(clientSocket);
+    sockReadWrite.ReadMessage();
+    sockReadWrite.WriteMessage(L"Server says hello.");
+
+    std::cout << "Messaging done! Disconnecting." << std::endl;
+
+    sockReadWrite.Close();
 }
 
 int main()

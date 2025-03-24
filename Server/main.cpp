@@ -7,6 +7,8 @@
 #include <winrt/Windows.Security.Credentials.h>
 #include <iostream>
 
+#include "socketReaderWriter.h"
+
 using namespace winrt;
 using namespace Windows::Foundation;
 using namespace Windows::Devices::WiFiDirect;
@@ -32,11 +34,25 @@ void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirec
         });
 
     WiFiDirectDevice wfdDevice = WiFiDirectDevice::FromIdAsync(connectionRequest.DeviceInformation().Id()).get();
+
+    if (wfdDevice == nullptr)
+    {
+        return;
+    }
+
     StreamSocketListener listener;
     listener.ConnectionReceived([](StreamSocketListener const& listener, StreamSocketListenerConnectionReceivedEventArgs const& args)
         {
             std::wcout << L"Connection received!" << std::endl;
             // Handle the incoming connection
+
+            SocketReaderWriter sockReadWrite(args.Socket());
+            sockReadWrite.WriteMessage(L"Client says hello.");
+            sockReadWrite.ReadMessage();
+
+            std::cout << "Messaging done! Disconnecting." << std::endl;
+
+            sockReadWrite.Close();
         });
 
     listener.BindServiceNameAsync(L"50001").get();

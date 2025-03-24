@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Server", "Server\Server.vcx
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Client", "Client\Client.vcxproj", "{AE32BF94-65BF-44AC-8370-862CC1F109FA}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Shared", "Shared\Shared.vcxitems", "{4A4F05B0-5AF2-4996-98B6-2BB93BD5AB40}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -34,5 +36,10 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		Shared\Shared.vcxitems*{4a4f05b0-5af2-4996-98b6-2bb93bd5ab40}*SharedItemsImports = 9
+		Shared\Shared.vcxitems*{ad5f8fab-ca49-4e18-a8ff-a35a68b7d688}*SharedItemsImports = 4
+		Shared\Shared.vcxitems*{ae32bf94-65bf-44ac-8370-862cc1f109fa}*SharedItemsImports = 4
 	EndGlobalSection
 EndGlobal
