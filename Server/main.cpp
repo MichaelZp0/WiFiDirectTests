@@ -19,6 +19,8 @@ using namespace Windows::Storage::Streams;
 using namespace Windows::Devices::Enumeration;
 using namespace Windows::Security::Credentials;
 
+using namespace std::chrono_literals;
+
 void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirectConnectionRequestedEventArgs const &connectionEventArgs)
 {
     auto connectionRequest = connectionEventArgs.GetConnectionRequest();
@@ -46,9 +48,11 @@ void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirec
     }
 
     StreamSocketListener listener;
-    listener.ConnectionReceived([](StreamSocketListener const& listener, StreamSocketListenerConnectionReceivedEventArgs const& args)
+    bool connectionReceived = false;
+    listener.ConnectionReceived([&connectionReceived](StreamSocketListener const& listener, StreamSocketListenerConnectionReceivedEventArgs const& args)
         {
             GlobalOutput::WriteLocked(L"Connection received!\n");
+            connectionReceived = true;
             // Handle the incoming connection
 
             SocketReaderWriter sockReadWrite(args.Socket());
@@ -60,8 +64,13 @@ void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirec
             sockReadWrite.Close();
         });
 
-    listener.BindEndpointAsync(wfdDevice.GetConnectionEndpointPairs().GetAt(0).LocalHostName(), serverPort);
+    listener.BindEndpointAsync(wfdDevice.GetConnectionEndpointPairs().GetAt(0).LocalHostName(), serverPort).get();
     GlobalOutput::WriteLocked([]() { std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl; });
+
+    for (int i = 0; i < 200 && !connectionReceived; ++i)
+    {
+        std::this_thread::sleep_for(100ms);
+    }
 }
 
 int main()
