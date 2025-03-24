@@ -68,6 +68,7 @@ void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirec
             sockReadWrite.Close();
         });
 
+    GlobalOutput::WriteLocked(wfdDevice.GetConnectionEndpointPairs().GetAt(0).LocalHostName().ToString().c_str());
     auto task = listener.BindEndpointAsync(wfdDevice.GetConnectionEndpointPairs().GetAt(0).LocalHostName(), serverPort);
     GlobalOutput::WriteLocked([]() { std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl; });
 
