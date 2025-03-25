@@ -23,6 +23,8 @@ using namespace Windows::Security::Credentials;
 
 using namespace std::chrono_literals;
 
+std::thread connectionThread;
+
 void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirectConnectionRequestedEventArgs const &connectionEventArgs)
 {
     auto connectionRequest = connectionEventArgs.GetConnectionRequest();
@@ -54,34 +56,52 @@ void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirec
         GlobalOutput::WriteLocked([&status]() { std::cout << "Connection status changed: " << status << "\n"; });
     });
 
-    StreamSocketListener listener;
-    bool connectionReceived = false;
-    listener.ConnectionReceived([&connectionReceived](StreamSocketListener const& listener, StreamSocketListenerConnectionReceivedEventArgs const& args)
-        {
-            GlobalOutput::WriteLocked(L"Connection received!\n");
-            connectionReceived = true;
-            // Handle the incoming connection
-
-            SocketReaderWriter sockReadWrite(args.Socket());
-            sockReadWrite.WriteMessage(L"Client says hello.");
-            sockReadWrite.ReadMessage();
-
-            GlobalOutput::WriteLocked("Messaging done! Disconnecting.\n");
-
-            sockReadWrite.Close();
-        });
-
     Collections::IVectorView<EndpointPair> endpointPairs = wfdDevice.GetConnectionEndpointPairs();
 
-    GlobalOutput::WriteLocked(endpointPairs.GetAt(0).LocalHostName().ToString().c_str(), true);
-    auto task = listener.BindEndpointAsync(endpointPairs.GetAt(0).LocalHostName(), serverPort);
-    GlobalOutput::WriteLocked([]() { std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl; });
+    connectionThread = std::thread([endpointPairs]() {
 
-    for (int i = 0; i < 40 && !connectionReceived; ++i)
-    {
-        std::this_thread::sleep_for(500ms);
-        GlobalOutput::WriteLocked(static_cast<uint32_t>(task.Status()) + "", true);
-    }
+        StreamSocketListener listener;
+        bool connectionReceived = false;
+        listener.ConnectionReceived([&connectionReceived](StreamSocketListener const& listener, StreamSocketListenerConnectionReceivedEventArgs const& args)
+            {
+                GlobalOutput::WriteLocked(L"Connection received!\n");
+                connectionReceived = true;
+                // Handle the incoming connection
+
+                SocketReaderWriter sockReadWrite(args.Socket());
+                sockReadWrite.WriteMessage(L"Client says hello.");
+                sockReadWrite.ReadMessage();
+
+                GlobalOutput::WriteLocked("Messaging done! Disconnecting.\n");
+
+                sockReadWrite.Close();
+            });
+
+        GlobalOutput::WriteLocked(endpointPairs.GetAt(0).LocalHostName().ToString().c_str(), true);
+        auto task = listener.BindEndpointAsync(endpointPairs.GetAt(0).LocalHostName(), serverPort);
+        GlobalOutput::WriteLocked([]() { std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl; });
+
+        for (int i = 0; i < 40 && !connectionReceived; ++i)
+        {
+            std::this_thread::sleep_for(500ms);
+
+            switch (task.Status())
+            {
+            case winrt::Windows::Foundation::AsyncStatus::Started:
+                GlobalOutput::WriteLocked("Started", true);
+                break;
+            case winrt::Windows::Foundation::AsyncStatus::Completed:
+                GlobalOutput::WriteLocked("Completed", true);
+                break;
+            case winrt::Windows::Foundation::AsyncStatus::Canceled:
+                GlobalOutput::WriteLocked("Canceled", true);
+                break;
+            case winrt::Windows::Foundation::AsyncStatus::Error:
+                GlobalOutput::WriteLocked("Error", true);
+                break;
+            }
+        }
+    });
 }
 
 int main()
