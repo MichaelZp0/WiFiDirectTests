@@ -47,7 +47,7 @@ void OnStopped(DeviceWatcher const& watcher, winrt::Windows::Foundation::IInspec
     GlobalOutput::WriteLocked([&deviceInfo]() { std::wcout << L"DeviceWatcher stopped: " << std::endl; });
 }
 
-void ConnectToDevice(DeviceInformation& info)
+IAsyncAction ConnectToDevice(DeviceInformation& info)
 {
     DeviceInformationCustomPairing customPairingInfo = info.Pairing().Custom();
 
@@ -58,19 +58,16 @@ void ConnectToDevice(DeviceInformation& info)
         args.AcceptWithPasswordCredential(credential);
         });
 
-    customPairingInfo.PairAsync(DevicePairingKinds::ProvidePasswordCredential).get();
+    co_await customPairingInfo.PairAsync(DevicePairingKinds::ProvidePasswordCredential);
     
     WiFiDirectConnectionParameters connectionParams;
     connectionParams.GroupOwnerIntent(0);
     
-    WiFiDirectDevice wfdDevice = nullptr;
-    IAsyncOperation<WiFiDirectDevice> task = WiFiDirectDevice::FromIdAsync(info.Id(), connectionParams);
-
-    wfdDevice = task.get();
+    WiFiDirectDevice wfdDevice = co_await WiFiDirectDevice::FromIdAsync(info.Id(), connectionParams);
 
     if (wfdDevice == nullptr)
     {
-        return;
+        co_return;
     }
 
     wfdDevice.ConnectionStatusChanged([](WiFiDirectDevice const& sender, winrt::Windows::Foundation::IInspectable const& args)
