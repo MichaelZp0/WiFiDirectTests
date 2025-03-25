@@ -59,9 +59,12 @@ void ConnectToDevice(DeviceInformation& info)
         });
 
     customPairingInfo.PairAsync(DevicePairingKinds::ProvidePasswordCredential).get();
-
+    
+    WiFiDirectConnectionParameters connectionParams;
+    connectionParams.GroupOwnerIntent(0);
+    
     WiFiDirectDevice wfdDevice = nullptr;
-    IAsyncOperation<WiFiDirectDevice> task = WiFiDirectDevice::FromIdAsync(info.Id());
+    IAsyncOperation<WiFiDirectDevice> task = WiFiDirectDevice::FromIdAsync(info.Id(), connectionParams);
 
     wfdDevice = task.get();
 
@@ -89,7 +92,7 @@ void ConnectToDevice(DeviceInformation& info)
     GlobalOutput::WriteLocked("Connecting to server...\n");
 
     StreamSocket clientSocket;
-    clientSocket.ConnectAsync(endpointPairs.GetAt(0).RemoteHostName(), serverPort).get();
+    co_await clientSocket.ConnectAsync(endpointPairs.GetAt(0).RemoteHostName(), serverPort);
 
     GlobalOutput::WriteLocked("Connected to server!\n");
 
