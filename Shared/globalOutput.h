@@ -16,14 +16,28 @@ public:
 		writeFunc();
 	}
 
-	static void WriteLocked(std::string str)
+	static void WriteLocked(std::string str, bool newline = false)
 	{
-		WriteLocked([&str]() { std::cout << str; });
+		if (newline)
+		{
+			WriteLocked([&str]() { std::cout << str << std::endl; });
+		}
+		else
+		{
+			WriteLocked([&str]() { std::cout << str; });
+		}
 	}
 
-	static void WriteLocked(std::wstring wstr)
+	static void WriteLocked(std::wstring wstr, bool newline = false)
 	{
-		WriteLocked([&wstr]() { std::wcout << wstr; });
+		if (newline)
+		{
+			WriteLocked([&wstr]() { std::wcout << wstr << std::endl; });
+		}
+		else
+		{
+			WriteLocked([&wstr]() { std::wcout << wstr; });
+		}
 	}
 
 private:

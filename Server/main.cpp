@@ -2,6 +2,7 @@
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Devices.WiFiDirect.h>
 #include <winrt/Windows.Networking.Sockets.h>
+#include <winrt/Windows.Networking.h>
 #include <winrt/Windows.Devices.Enumeration.h>
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.Security.Credentials.h>
@@ -14,6 +15,7 @@
 using namespace winrt;
 using namespace Windows::Foundation;
 using namespace Windows::Devices::WiFiDirect;
+using namespace Windows::Networking;
 using namespace Windows::Networking::Sockets;
 using namespace Windows::Storage::Streams;
 using namespace Windows::Devices::Enumeration;
@@ -69,14 +71,16 @@ void OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirec
             sockReadWrite.Close();
         });
 
-    GlobalOutput::WriteLocked(wfdDevice.GetConnectionEndpointPairs().GetAt(0).LocalHostName().ToString().c_str());
-    auto task = listener.BindEndpointAsync(wfdDevice.GetConnectionEndpointPairs().GetAt(0).LocalHostName(), serverPort);
+    Collections::IVectorView<EndpointPair> endpointPairs = wfdDevice.GetConnectionEndpointPairs();
+
+    GlobalOutput::WriteLocked(endpointPairs.GetAt(0).LocalHostName().ToString().c_str(), true);
+    auto task = listener.BindEndpointAsync(endpointPairs.GetAt(0).LocalHostName(), serverPort);
     GlobalOutput::WriteLocked([]() { std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl; });
 
     for (int i = 0; i < 40 && !connectionReceived; ++i)
     {
         std::this_thread::sleep_for(500ms);
-        GlobalOutput::WriteLocked(static_cast<uint32_t>(task.Status()) + "");
+        GlobalOutput::WriteLocked(static_cast<uint32_t>(task.Status()) + "", true);
     }
 }
 
