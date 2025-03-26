@@ -42,7 +42,11 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
         args.AcceptWithPasswordCredential(credential);
         });
 
-    WiFiDirectDevice wfdDevice = (co_await WiFiDirectDevice::FromIdAsync(connectionRequest.DeviceInformation().Id())).get();
+
+    WiFiDirectConnectionParameters connectionParams;
+    connectionParams.GroupOwnerIntent(0);
+
+    WiFiDirectDevice wfdDevice = co_await WiFiDirectDevice::FromIdAsync(connectionRequest.DeviceInformation().Id(), connectionParams);
 
     if (wfdDevice == nullptr)
     {

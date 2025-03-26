@@ -58,15 +58,31 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
         args.AcceptWithPasswordCredential(credential);
         });
 
-    co_await customPairingInfo.PairAsync(DevicePairingKinds::ProvidePasswordCredential);
+    auto pairingResult = co_await customPairingInfo.PairAsync(DevicePairingKinds::ProvidePasswordCredential);
     
+    if (pairingResult.Status() != DevicePairingResultStatus::Paired)
+    {
+        GlobalOutput::WriteLocked([&pairingResult]() { std::wcout << L"Pairing failed: " << static_cast<int>(pairingResult.Status()) << std::endl; });
+        co_return;
+    }
+
     WiFiDirectConnectionParameters connectionParams;
     connectionParams.GroupOwnerIntent(0);
     
-    WiFiDirectDevice wfdDevice = co_await WiFiDirectDevice::FromIdAsync(info.Id(), connectionParams);
+    WiFiDirectDevice wfdDevice = nullptr;
+    try
+    {
+        wfdDevice = co_await WiFiDirectDevice::FromIdAsync(info.Id(), connectionParams);
+    }
+    catch (hresult_error const& ex)
+    {
+        GlobalOutput::WriteLocked([&ex]() { std::wcout << L"Failed to create WiFiDirectDevice: " << ex.message().c_str() << std::endl; });
+        co_return;
+    }
 
     if (wfdDevice == nullptr)
     {
+        GlobalOutput::WriteLocked(L"Failed to create WiFiDirectDevice: Device is null\n");
         co_return;
     }
 
@@ -76,6 +92,11 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
     });
 
     auto endpointPairs = wfdDevice.GetConnectionEndpointPairs();
+    if (endpointPairs.Size() == 0)
+    {
+        GlobalOutput::WriteLocked(L"No endpoint pairs found\n");
+        co_return;
+    }
 
     GlobalOutput::WriteLocked([&endpointPairs]() {
         std::wcout << "Connected to device with IP " << endpointPairs.GetAt(0).RemoteHostName().DisplayName().c_str() << " on port " << serverPort.c_str() << std::endl;
@@ -89,7 +110,15 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
     GlobalOutput::WriteLocked("Connecting to server...\n");
 
     StreamSocket clientSocket;
-    co_await clientSocket.ConnectAsync(endpointPairs.GetAt(0).RemoteHostName(), serverPort);
+    try
+    {
+        co_await clientSocket.ConnectAsync(endpointPairs.GetAt(0).RemoteHostName(), serverPort);
+    }
+    catch (hresult_error const& ex)
+    {
+        GlobalOutput::WriteLocked([&ex]() { std::wcout << L"Failed to connect to server: " << ex.message().c_str() << std::endl; });
+        co_return;
+    }
 
     GlobalOutput::WriteLocked("Connected to server!\n");
 
