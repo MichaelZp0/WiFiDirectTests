@@ -80,13 +80,10 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
 
             GlobalOutput::WriteLocked("HELO done between server/client.\n");
 
-            listeningThread = std::thread([]()
-                {
-                    while (!(*shouldClose))
-                    {
-                        sockReadWrite->ReadMessage();
-                    }
-                });
+            while (!(*shouldClose))
+            {
+                sockReadWrite->ReadMessage();
+            }
         });
 
     GlobalOutput::WriteLocked(endpointPairs.GetAt(0).LocalHostName().ToString().c_str(), true);

@@ -51,16 +51,16 @@ void SocketReaderWriter::ReadMessage()
 {
     try
     {
-        auto task = _socketReader.LoadAsync(sizeof(uint32_t));
+        DataReaderLoadOperation task = _socketReader.LoadAsync(sizeof(uint32_t));
 
 		while (task.Status() != AsyncStatus::Completed)
 		{
-		    task.wait_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-			if (*_shouldClose)
-			{
-				return;
-			}
+            if (*_shouldClose)
+            {
+                return;
+            }
 		}
 
         unsigned int bytesInBuffer = task.get();
@@ -86,6 +86,7 @@ void SocketReaderWriter::ReadMessage()
 						else
 						{
 							std::wcout << "The remote side closed the socket" << std::endl;
+							*_shouldClose = true;
                             break;
 						}
                     }
