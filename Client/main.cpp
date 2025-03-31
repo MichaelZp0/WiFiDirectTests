@@ -5,6 +5,7 @@
 #include <winrt/Windows.Security.Credentials.h>
 #include <iostream>
 #include <chrono>
+#include <optional>
 
 #include "socketReaderWriter.h"
 #include "constants.h"
@@ -20,7 +21,9 @@ using namespace Windows::Devices::WiFiDirect;
 using namespace Windows::Networking::Sockets;
 using namespace Windows::Security::Credentials;
 
+std::shared_ptr<bool> shouldClose = std::make_shared<bool>(false);
 std::vector<DeviceInformation> foundDevices;
+std::optional<SocketReaderWriter> sockReadWrite;
 
 void OnDeviceAdded(DeviceWatcher const& watcher, DeviceInformation const& deviceInfo)
 {
@@ -105,13 +108,11 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
 
     GlobalOutput::WriteLocked("Connected to server!\n");
 
-    SocketReaderWriter sockReadWrite(clientSocket);
-    sockReadWrite.ReadMessage();
-    sockReadWrite.WriteMessage(L"Server says hello.");
+    sockReadWrite = SocketReaderWriter(clientSocket, shouldClose);
+    sockReadWrite->ReadMessage();
+    sockReadWrite->WriteMessage(L"Server says hello.");
 
-    GlobalOutput::WriteLocked("Messaging done! Disconnecting.\n");
-
-    sockReadWrite.Close();
+    GlobalOutput::WriteLocked("HELO done between server/client.\n");
 }
 
 int main()
@@ -138,6 +139,7 @@ int main()
     GlobalOutput::WriteLocked("1 - List Devices\n");
     GlobalOutput::WriteLocked("2 x - Connect to Device number x\n");
     GlobalOutput::WriteLocked("3 [start|stop] - Start/stop the device watcher\n");
+    GlobalOutput::WriteLocked("4 <Message> - Send a message to the server\n");
 
     while (true)
     {
@@ -212,6 +214,18 @@ int main()
                 GlobalOutput::WriteLocked("Unknown argument. Please only use stop or start.\n");
             }
         }
+        else if (input._Starts_with("4"))
+        {
+            std::string message = input.substr(2);
+			if (sockReadWrite.has_value())
+			{
+				sockReadWrite->WriteMessage(winrt::to_hstring(message));
+			}
+			else
+			{
+				GlobalOutput::WriteLocked("Not connected to a server", true);
+			}
+        }
         else if (input == "q" || input == "quit" || input == "e" || input == "exit")
         {
             break;
@@ -221,6 +235,12 @@ int main()
     deviceWatcher.Stop();
 
     GlobalOutput::WriteLocked("Exiting");
+
+	if (sockReadWrite.has_value())
+	{
+        *shouldClose = true;
+		sockReadWrite->Close();
+	}
 
     return 0;
 }

@@ -27,6 +27,9 @@ using namespace Windows::Security::Credentials;
 using namespace std::chrono_literals;
 
 StreamSocketListener listener;
+std::shared_ptr<bool> shouldClose = std::make_shared<bool>(false);
+std::optional<std::thread> listenerThread;
+std::optional<SocketReaderWriter> sockReadWrite;
 
 IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirectConnectionRequestedEventArgs const &connectionEventArgs)
 {
@@ -71,13 +74,18 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
             connectionReceived = true;
             // Handle the incoming connection
 
-            SocketReaderWriter sockReadWrite(args.Socket());
-            sockReadWrite.WriteMessage(L"Client says hello.");
-            sockReadWrite.ReadMessage();
+            sockReadWrite = SocketReaderWriter(args.Socket(), shouldClose);
+            sockReadWrite->WriteMessage(L"Client says hello.");
+            sockReadWrite->ReadMessage();
 
-            GlobalOutput::WriteLocked("Messaging done! Disconnecting.\n");
+            GlobalOutput::WriteLocked("HELO done between server/client.\n");
 
-            sockReadWrite.Close();
+            listenerThread = std::thread([]() {
+                while (sockReadWrite.has_value())
+                {
+                    sockReadWrite->ReadMessage();
+                }
+            });
         });
 
     GlobalOutput::WriteLocked(endpointPairs.GetAt(0).LocalHostName().ToString().c_str(), true);
@@ -146,6 +154,14 @@ int main()
 
     publisher.Stop();
     GlobalOutput::WriteLocked(L"Stopped WiFi Direct advertisement.\n");
+
+	if (sockReadWrite.has_value())
+	{
+		*shouldClose = true;
+		sockReadWrite->Close();
+        listenerThread->join();
+	}
+
 
     return 0;
 }

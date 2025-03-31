@@ -47,11 +47,23 @@ void SocketReaderWriter::WriteMessage(winrt::hstring message)
     }
 }
 
-void SocketReaderWriter::ReadMessage()
+IAsyncAction SocketReaderWriter::ReadMessage()
 {
     try
     {
-        unsigned int bytesRead = _socketReader.LoadAsync(sizeof(uint32_t)).get();
+        auto task = _socketReader.LoadAsync(sizeof(uint32_t));
+
+		while (task.Status() != AsyncStatus::Completed)
+		{
+		    task.wait_for(std::chrono::milliseconds(100));
+
+			if (*_shouldClose)
+			{
+				co_return;
+			}
+		}
+
+        unsigned int bytesRead = 0;
         if (bytesRead > 0)
         {
             unsigned int strLength = (unsigned int)_socketReader.ReadUInt32();
