@@ -52,13 +52,10 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
 {
     co_await Pairing::PairIfNeeded(info);
 
-    WiFiDirectConnectionParameters connectionParams;
-    connectionParams.GroupOwnerIntent(0);
-
     WiFiDirectDevice wfdDevice = nullptr;
     try
     {
-        wfdDevice = co_await WiFiDirectDevice::FromIdAsync(info.Id(), connectionParams);
+        wfdDevice = co_await WiFiDirectDevice::FromIdAsync(info.Id());
     }
     catch (hresult_error const& ex)
     {

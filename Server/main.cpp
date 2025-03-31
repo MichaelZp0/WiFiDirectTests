@@ -26,6 +26,8 @@ using namespace Windows::Security::Credentials;
 
 using namespace std::chrono_literals;
 
+StreamSocketListener listener;
+
 IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirectConnectionRequestedEventArgs const &connectionEventArgs)
 {
     WiFiDirectConnectionRequest connectionRequest = connectionEventArgs.GetConnectionRequest();
@@ -38,11 +40,8 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
 
     DeviceInformation info = connectionRequest.DeviceInformation();
 
-    WiFiDirectConnectionParameters connectionParams;
-    connectionParams.GroupOwnerIntent(0);
-
 	GlobalOutput::WriteLocked("Trying to get WiFiDirectDevice from connection request...", true);
-    WiFiDirectDevice wfdDevice = co_await WiFiDirectDevice::FromIdAsync(connectionRequest.DeviceInformation().Id(), connectionParams);
+    WiFiDirectDevice wfdDevice = co_await WiFiDirectDevice::FromIdAsync(connectionRequest.DeviceInformation().Id());
 	GlobalOutput::WriteLocked("Got WiFiDirectDevice from connection request!", true);
 
     if (wfdDevice == nullptr)
@@ -57,11 +56,14 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
         GlobalOutput::WriteLocked([&status]() { std::cout << "Connection status changed: " << status << "\n"; });
     });
 
+    GlobalOutput::WriteLocked("Setting up listener...", true);
+
     GlobalOutput::WriteLocked("Getting endpoint pairs...", true);
     Collections::IVectorView<EndpointPair> endpointPairs = wfdDevice.GetConnectionEndpointPairs();
 
-    GlobalOutput::WriteLocked("Setting up listener...", true);
-    StreamSocketListener listener;
+    listener = nullptr;
+	listener = StreamSocketListener();
+
     bool connectionReceived = false;
     listener.ConnectionReceived([&connectionReceived](StreamSocketListener const& listener, StreamSocketListenerConnectionReceivedEventArgs const& args)
         {
