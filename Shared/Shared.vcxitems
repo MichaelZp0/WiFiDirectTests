@@ -16,11 +16,13 @@
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)constants.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)globalOutput.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)pairing.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)pch.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)socketReaderWriter.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(MSBuildThisFileDirectory)globalOutput.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)pairing.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)socketReaderWriter.cpp" />
   </ItemGroup>
 </Project>

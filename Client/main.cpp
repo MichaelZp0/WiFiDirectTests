@@ -9,6 +9,7 @@
 #include "socketReaderWriter.h"
 #include "constants.h"
 #include "globalOutput.h"
+#include "pairing.h"
 
 using namespace std::chrono_literals;
 
@@ -49,26 +50,11 @@ void OnStopped(DeviceWatcher const& watcher, winrt::Windows::Foundation::IInspec
 
 IAsyncAction ConnectToDevice(DeviceInformation& info)
 {
-    DeviceInformationCustomPairing customPairingInfo = info.Pairing().Custom();
-
-    customPairingInfo.PairingRequested([](DeviceInformationCustomPairing const& sender, DevicePairingRequestedEventArgs const& args) {
-        PasswordCredential credential;
-        credential.UserName(L"testUser");
-        credential.Password(L"testPass1234");
-        args.AcceptWithPasswordCredential(credential);
-        });
-
-    auto pairingResult = co_await customPairingInfo.PairAsync(DevicePairingKinds::ProvidePasswordCredential);
-    
-    if (pairingResult.Status() != DevicePairingResultStatus::Paired)
-    {
-        GlobalOutput::WriteLocked([&pairingResult]() { std::wcout << L"Pairing failed: " << static_cast<int>(pairingResult.Status()) << std::endl; });
-        co_return;
-    }
+    co_await Pairing::PairIfNeeded(info);
 
     WiFiDirectConnectionParameters connectionParams;
     connectionParams.GroupOwnerIntent(0);
-    
+
     WiFiDirectDevice wfdDevice = nullptr;
     try
     {

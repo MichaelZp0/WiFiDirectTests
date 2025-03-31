@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Devices.WiFiDirect.h>
 #include <winrt/Windows.Networking.Sockets.h>
 #include <winrt/Windows.Networking.h>
@@ -7,10 +8,12 @@
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.Security.Credentials.h>
 #include <iostream>
+#include <sstream>
 
 #include "socketReaderWriter.h"
 #include "constants.h"
 #include "globalOutput.h"
+#include "pairing.h"
 
 using namespace winrt;
 using namespace Windows::Foundation;
@@ -25,7 +28,9 @@ using namespace std::chrono_literals;
 
 IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirectConnectionRequestedEventArgs const &connectionEventArgs)
 {
-    auto connectionRequest = connectionEventArgs.GetConnectionRequest();
+    WiFiDirectConnectionRequest connectionRequest = connectionEventArgs.GetConnectionRequest();
+
+    co_await Pairing::PairIfNeeded(connectionRequest.DeviceInformation());
 
     GlobalOutput::WriteLocked([&connectionRequest]() {
         std::wcout << L"Connection requested from: " << connectionRequest.DeviceInformation().Name().c_str() << std::endl;
@@ -87,6 +92,10 @@ int main()
     init_apartment();
 
     WiFiDirectAdvertisementPublisher publisher;
+
+    // Set the preferred pairing procedure
+    WiFiDirectConnectionParameters connectionParams;
+    connectionParams.PreferredPairingProcedure(WiFiDirectPairingProcedure::GroupOwnerNegotiation);
 
     //publisher.Advertisement().IsAutonomousGroupOwnerEnabled(true);
     publisher.Advertisement().IsAutonomousGroupOwnerEnabled(false);
