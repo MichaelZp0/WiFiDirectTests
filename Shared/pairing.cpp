@@ -72,8 +72,9 @@ namespace Pairing
         WiFiDirectConnectionParameters connectionParams;
 
         //DevicePairingKinds devicePairingKinds = DevicePairingKinds::ConfirmOnly | DevicePairingKinds::DisplayPin | DevicePairingKinds::ProvidePin;
-        DevicePairingKinds devicePairingKinds = DevicePairingKinds::ProvidePasswordCredential;
+        //DevicePairingKinds devicePairingKinds = DevicePairingKinds::ProvidePasswordCredential;
         //DevicePairingKinds devicePairingKinds = DevicePairingKinds::ProvideAddress;
+        DevicePairingKinds devicePairingKinds = DevicePairingKinds::ConfirmOnly;
 
         //connectionParams.PreferenceOrderedConfigurationMethods().Append(WiFiDirectConfigurationMethod::PushButton);
         //connectionParams.PreferenceOrderedConfigurationMethods().Append(WiFiDirectConfigurationMethod::ProvidePin);
