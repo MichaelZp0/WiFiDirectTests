@@ -47,7 +47,7 @@ void SocketReaderWriter::WriteMessage(winrt::hstring message)
     }
 }
 
-IAsyncAction SocketReaderWriter::ReadMessage()
+void SocketReaderWriter::ReadMessage()
 {
     try
     {
@@ -59,31 +59,46 @@ IAsyncAction SocketReaderWriter::ReadMessage()
 
 			if (*_shouldClose)
 			{
-				co_return;
+				return;
 			}
 		}
 
-        unsigned int bytesRead = 0;
-        if (bytesRead > 0)
+        unsigned int bytesInBuffer = task.get();
+        if (bytesInBuffer > 0)
         {
-            unsigned int strLength = (unsigned int)_socketReader.ReadUInt32();
-            try
+            uint32_t readBytesOfStr = 0;
+            uint32_t strLength = (unsigned int)_socketReader.ReadUInt32();
+
+            if (strLength > 0)
             {
-                bytesRead = _socketReader.LoadAsync(strLength).get();
-                if (bytesRead > 0)
+                std::wcout << "Got message: '";
+
+                while (readBytesOfStr < strLength)
                 {
-                    std::wcout << "Got message: " << _socketReader.ReadString(strLength).c_str() << std::endl;
-                    ReadMessage();
+                    try
+                    {
+                        uint32_t readBytes = _socketReader.LoadAsync(strLength).get();
+						if (readBytes > 0)
+						{
+							readBytesOfStr += readBytes;
+							std::wcout << _socketReader.ReadString(readBytes).c_str();
+						}
+						else
+						{
+							std::wcout << "The remote side closed the socket" << std::endl;
+                            break;
+						}
+                    }
+                    catch (std::exception& e)
+                    {
+                        std::wcout << "Failed to read from socket: " << e.what() << std::endl;
+                    }
                 }
-                else
-                {
-                    std::wcout << "The remote side closed the socket" << std::endl;
-                }
+
+				std::wcout << "'" << std::endl;
             }
-            catch (std::exception& e)
-            {
-                std::wcout << "Failed to read from socket: " << e.what() << std::endl;
-            }
+
+            
         }
         else
         {

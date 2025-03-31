@@ -33,7 +33,7 @@ public:
     }
 
     void WriteMessage(winrt::hstring message);
-    winrt::Windows::Foundation::IAsyncAction ReadMessage();
+    void ReadMessage();
     void Close();
 
 private:

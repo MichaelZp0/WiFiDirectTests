@@ -27,8 +27,8 @@ using namespace Windows::Security::Credentials;
 using namespace std::chrono_literals;
 
 StreamSocketListener listener;
+std::thread listeningThread;
 std::shared_ptr<bool> shouldClose = std::make_shared<bool>(false);
-std::optional<std::thread> listenerThread;
 std::optional<SocketReaderWriter> sockReadWrite;
 
 IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, WiFiDirectConnectionRequestedEventArgs const &connectionEventArgs)
@@ -80,12 +80,13 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
 
             GlobalOutput::WriteLocked("HELO done between server/client.\n");
 
-            listenerThread = std::thread([]() {
-                while (sockReadWrite.has_value())
+            listeningThread = std::thread([]()
                 {
-                    sockReadWrite->ReadMessage();
-                }
-            });
+                    while (!(*shouldClose))
+                    {
+                        sockReadWrite->ReadMessage();
+                    }
+                });
         });
 
     GlobalOutput::WriteLocked(endpointPairs.GetAt(0).LocalHostName().ToString().c_str(), true);
@@ -159,9 +160,9 @@ int main()
 	{
 		*shouldClose = true;
 		sockReadWrite->Close();
-        listenerThread->join();
 	}
 
+	listeningThread.join();
 
     return 0;
 }
