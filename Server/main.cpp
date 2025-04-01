@@ -157,9 +157,8 @@ int main()
 	{
 		*shouldClose = true;
 		sockReadWrite->Close();
+        listeningThread.join();
 	}
-
-	listeningThread.join();
 
     return 0;
 }
