@@ -104,11 +104,13 @@ void SocketReaderWriter::ReadMessage()
         else
         {
             std::wcout << "The remote side closed the socket" << std::endl;
+            *_shouldClose = true;
         }
     }
     catch (std::exception& e)
     {
         std::wcout << "Failed to read from socket: " << e.what() << std::endl;
+        *_shouldClose = true;
     }
 }
 

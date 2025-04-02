@@ -35,6 +35,10 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
 {
     WiFiDirectConnectionRequest connectionRequest = connectionEventArgs.GetConnectionRequest();
 
+    GlobalOutput::WriteLocked([&connectionRequest]() {
+        std::wcout << L"Trying to pair with: " << connectionRequest.DeviceInformation().Name().c_str() << std::endl;
+        });
+
     co_await Pairing::PairIfNeeded(connectionRequest.DeviceInformation());
 
     GlobalOutput::WriteLocked([&connectionRequest]() {
