@@ -161,7 +161,9 @@ int main()
 	{
 		*shouldClose = true;
 		sockReadWrite->Close();
-        listeningThread.join();
+        if (listeningThread.joinable()) {
+            listeningThread.join();
+        }
 	}
 
     return 0;
