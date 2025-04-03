@@ -1,18 +1,21 @@
 package com.example.wifidirecttests2
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
 import android.net.MacAddress
+import android.net.NetworkCapabilities
 import android.net.NetworkInfo
+import android.net.NetworkRequest
 import android.net.wifi.WpsInfo
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pDevice
 import android.net.wifi.p2p.WifiP2pGroup
 import android.net.wifi.p2p.WifiP2pInfo
 import android.net.wifi.p2p.WifiP2pManager
-import android.net.wifi.p2p.WifiP2pManager.WifiP2pGroupList
 import androidx.annotation.RequiresPermission
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
@@ -20,6 +23,7 @@ import java.lang.reflect.Proxy
 
 class MyBroadcastReceiver(private val channel: WifiP2pManager.Channel,
                           private val manager: WifiP2pManager,
+                          private val connectivityManager: ConnectivityManager,
                           private val activity: MainActivity
 ) : BroadcastReceiver() {
 
@@ -67,51 +71,7 @@ class MyBroadcastReceiver(private val channel: WifiP2pManager.Channel,
         }
     }
 
-    fun deletePersistentGroups() {
-        try {
-            val methods = WifiP2pManager::class.java.methods
-            for (i in methods.indices) {
-                if (methods[i]!!.name == "deletePersistentGroup") {
-                    // Delete any persistent group
-                    for (netId in 0..128) {
-                        methods[i]!!.invoke(manager, channel, netId, null)
-                    }
-                }
-            }
-        } catch (ex: Exception) {
-            ex.printStackTrace()
-            activity.showError("deletePersistentGroups", "Exception: '${ex.message}'")
-        }
-    }
-
-    fun listPersistentGroups() {
-        try {
-            val methods = WifiP2pManager::class.java.methods
-            for (i in methods.indices) {
-                if (methods[i]!!.name == "requestPersistentGroupInfo") {
-                    val classLoader = WifiP2pManager::class.java.classLoader
-                    val interfaces = arrayOf(WifiP2pManager::class.java.classes[22])
-
-                    val proxy = Proxy.newProxyInstance(
-                        classLoader,
-                        interfaces,
-                        InvocationHandler { proxy, method, args ->
-                            MyPersistentGroupInfoListener(activity).onPersistentGroupInfoAvailable(
-                                args[0] as WifiP2pGroupList
-                            )
-                        })
-
-
-                    // Request any persistent groups
-                    methods[i]!!.invoke(manager, channel, proxy)
-                }
-            }
-        } catch (ex: Exception) {
-            ex.printStackTrace()
-            activity.showError("listPersistentGroups", "Exception: '${ex.message}'")
-        }
-    }
-
+    @SuppressLint("MissingPermission")
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES])
     override fun onReceive(context: Context, intent: Intent) {
         when(intent.action) {
@@ -153,15 +113,19 @@ class MyBroadcastReceiver(private val channel: WifiP2pManager.Channel,
                         activity.showInfo("connect", "Got group info")
                     }
 
-                    if (networkInfo?.isConnected == true) {
+                    // Replacing this with ConnectivityManager doesn't look like it will work
+                    // When listening for changes on wifi/p2p networks there nothing happens
+                    manager.requestNetworkInfo(channel) { info ->
+                        if (info.isConnected == true) {
 
-                        // We are connected with the other device, request connection
-                        // info to find group owner IP
+                            // We are connected with the other device, request connection
+                            // info to find group owner IP
 
-                        activity.showInfo("onReceive", "Network is connected.")
-                        manager.requestConnectionInfo(channel, connectionListener)
-                    } else {
-                        activity.showWarning("onReceive", "Network isn't connected.")
+                            activity.showInfo("onReceive", "Network is connected.")
+                            manager.requestConnectionInfo(channel, connectionListener)
+                        } else {
+                            activity.showWarning("onReceive", "Network isn't connected.")
+                        }
                     }
                 }
             }
@@ -225,7 +189,7 @@ class MyBroadcastReceiver(private val channel: WifiP2pManager.Channel,
             // you'll want to create a peer thread that connects
             // to the group owner.
             activity.showInfo("ConnectionListener", "Group formed as group member")
-            val clientSocket = ClientSocket(groupOwnerAddress, 50001, activity)
+            val clientSocket = ClientSocket(groupOwnerAddress, 50001)
             clientSocket.start()
         } else {
             activity.showInfo("ConnectionListener", "Something else")

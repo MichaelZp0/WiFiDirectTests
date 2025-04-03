@@ -5,8 +5,16 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.LinkProperties
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.net.NetworkSpecifier
+import android.net.wifi.WifiNetworkSpecifier
 import android.net.wifi.p2p.WifiP2pManager
 import android.os.Bundle
+import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -14,9 +22,11 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.wifidirecttests2.databinding.ActivityMainBinding
+import kotlin.enums.enumEntries
 
 class MainActivity : AppCompatActivity() {
 
@@ -26,14 +36,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var manager: WifiP2pManager
     private lateinit var receiver: MyBroadcastReceiver
 
+    private lateinit var connectivityManager: ConnectivityManager
+
     private val discoveredDevices = mutableListOf<String>()
     private lateinit var discoveredDevicesAdapter: ArrayAdapter<String>
 
     private val logMessages = mutableListOf<String>()
     private lateinit var logMessageAdapter: ArrayAdapter<String>
 
-    private var arePermissionsGranted = false
-    private var permissionsToRequest = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES)
+    private var permissionsToRequest = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES, Manifest.permission.ACCESS_NETWORK_STATE)
     private lateinit var permissionsRequest: ActivityResultLauncher<Array<String>>
 
     @SuppressLint("MissingPermission")
@@ -49,7 +60,6 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-
 
         // Indicates a change in the Wi-Fi Direct status.
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION)
@@ -134,7 +144,9 @@ class MainActivity : AppCompatActivity() {
 
     public override fun onResume() {
         super.onResume()
-        receiver = MyBroadcastReceiver(channel, manager, this)
+        connectivityManager = getSystemService(ConnectivityManager::class.java)
+        receiver = MyBroadcastReceiver(channel, manager, connectivityManager, this)
+
         registerReceiver(receiver, intentFilter)
     }
 
@@ -152,6 +164,7 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, msgToDisplay, Toast.LENGTH_LONG).show()
         logMessages.add("ERR: $msgToDisplay")
         logMessageAdapter.notifyDataSetChanged()
+        Log.e(null, msgToDisplay)
     }
 
     fun showWarning(funcName: String, msg: String) {
@@ -159,11 +172,13 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, msgToDisplay, Toast.LENGTH_SHORT).show()
         logMessages.add("WRN: $msgToDisplay")
         logMessageAdapter.notifyDataSetChanged()
+        Log.w(null, msgToDisplay)
     }
 
     fun showInfo(funcName: String, msg: String) {
         val msgToDisplay = concatLogString(msg, funcName)
         logMessages.add("NFO: $msgToDisplay")
         logMessageAdapter.notifyDataSetChanged()
+        Log.i(null, msgToDisplay)
     }
 }

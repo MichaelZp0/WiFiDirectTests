@@ -6,9 +6,8 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
-import kotlin.experimental.and
 
-class ClientSocket(val hostAddress: String, val port: Int, val activity: MainActivity): Thread() {
+class ClientSocket(val hostAddress: String, val port: Int): Thread() {
 
     lateinit var inputStream: InputStream
     lateinit var outputStream: OutputStream
@@ -16,7 +15,6 @@ class ClientSocket(val hostAddress: String, val port: Int, val activity: MainAct
 
     fun write(string: String) {
         try {
-            // activity.showInfo("ClientSocket.write", "Sending message: '$string'")
             Log.i(null, "ClientSocket.write: Sending message: '$string'")
 
             val lengthArray = ByteArray(4)
@@ -31,12 +29,10 @@ class ClientSocket(val hostAddress: String, val port: Int, val activity: MainAct
         } catch (ex:IOException) {
             ex.printStackTrace()
             Log.e(null, "ClientSocket.write: IO exception: '${ex.message}'")
-            // activity.showError("ClientSocket.write", "IO exception: '${ex.message}'")
         }
     }
 
     fun readMessage() : Boolean {
-        val u32Buffer = ByteArray(4)
         val buffer = ByteArray(1024)
         var msgLength = 0
         var readBytes = 0
@@ -52,7 +48,6 @@ class ClientSocket(val hostAddress: String, val port: Int, val activity: MainAct
 
             if (msgLength == -1) {
                 Log.i(null, "ClientSocket.ReadMessage: Server closed connection")
-                // activity.showInfo("ClientSocket.run", "Server closed connection")
                 return false
             }
 
@@ -64,7 +59,6 @@ class ClientSocket(val hostAddress: String, val port: Int, val activity: MainAct
                     if (readBytes >= msgLength) {
                         val tmpMessage = String(buffer, 0, msgLength)
                         Log.i(null, "ClientSocket.ReadMessage: Message: '$tmpMessage'")
-                        // activity.showInfo("ClientSocket.run", "Message: '$tmpMessage'")
                         break
                     }
                 }
@@ -72,27 +66,39 @@ class ClientSocket(val hostAddress: String, val port: Int, val activity: MainAct
         } catch (ex:IOException) {
             ex.printStackTrace()
             Log.e(null, "ClientSocket.run: Exception: '${ex.message}'")
-            // activity.showError("ClientSocket.run", "Exception: '${ex.message}'")
         }
 
         return true
     }
 
     override fun run() {
-        try {
-            Log.i(null, "ClientSocket.Init: Waiting for server to start listening")
-            sleep(7500)
-            Log.i(null, "ClientSocket.Init: Trying to connect")
+        var connected = false
 
-            socket = Socket()
-            socket.connect(InetSocketAddress(hostAddress, port), 500)
-            inputStream = socket.getInputStream()
-            outputStream = socket.getOutputStream()
-        } catch (ex:IOException) {
-            ex.printStackTrace()
-            Log.e(null, "ClientSocket.Init: Exception: '${ex.message}'")
-            // activity.showError("ClientSocket.Init", "Exception: '${ex.message}'")
+        for (i in 1..3) {
+            try {
+                socket = Socket()
+                Log.i(null, "ClientSocket.Init: Trying to connect")
+                socket.connect(InetSocketAddress(hostAddress, port), 20000)
+                inputStream = socket.getInputStream()
+                outputStream = socket.getOutputStream()
+                Log.i(null, "ClientSocket.Init: Connected")
+                connected = true
+                break
+            } catch (ex:IOException) {
+                ex.printStackTrace()
+                if (i != 3) {
+                    Log.i(null, "ClientSocket.Init: Failed to connect on attempt $i. Retrying.")
+                } else {
+                    Log.i(null, "ClientSocket.Init: Failed to connect on attempt $i. Aborting.")
+                }
+                Log.e(null, "ClientSocket.Init: Exception: '${ex.message}'")
+            }
         }
+
+        if (!connected) {
+            return
+        }
+
 
         try {
             if (!readMessage()) {
@@ -101,7 +107,7 @@ class ClientSocket(val hostAddress: String, val port: Int, val activity: MainAct
 
             write("Hello")
 
-            // activity.showInfo("ClientSocket.run", "HELO done between server/client.")
+            Log.i(null, "HELO done between server and client")
 
             sleep(1000)
             write("3...")
@@ -115,7 +121,6 @@ class ClientSocket(val hostAddress: String, val port: Int, val activity: MainAct
         } catch (ex: Exception) {
             ex.printStackTrace()
             Log.e(null, "ClientSocket.ReadWrite: Exception: '${ex.message}'")
-            // activity.showError("ClientSocket.ReadWrite", "Exception: '${ex.message}'")
         }
 
         socket.close()
