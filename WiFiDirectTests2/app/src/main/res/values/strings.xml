@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">WiFiDirectTests2</string>
+    <string name="errors">Errors:</string>
+    <string name="hello_world">Hello World!</string>
+    <string name="infos">Infos:</string>
+    <string name="warnings">Warnings:</string>
+    <string name="request_permissions">Request permissions</string>
+    <string name="start_discovering_devices">Start discovering devices</string>
+    <string name="delete_wifi_groups">Delete WiFi groups</string>
+    <string name="list_wifi_groups">List WiFi groups</string>
+</resources>
