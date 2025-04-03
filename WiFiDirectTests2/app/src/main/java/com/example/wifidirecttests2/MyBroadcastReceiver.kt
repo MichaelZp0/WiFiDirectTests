@@ -4,7 +4,7 @@ import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
+import android.net.MacAddress
 import android.net.NetworkInfo
 import android.net.wifi.WpsInfo
 import android.net.wifi.p2p.WifiP2pConfig
@@ -14,10 +14,8 @@ import android.net.wifi.p2p.WifiP2pInfo
 import android.net.wifi.p2p.WifiP2pManager
 import android.net.wifi.p2p.WifiP2pManager.WifiP2pGroupList
 import androidx.annotation.RequiresPermission
-import androidx.core.content.IntentCompat
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
-import kotlin.jvm.java
 
 
 class MyBroadcastReceiver(private val channel: WifiP2pManager.Channel,
@@ -188,10 +186,13 @@ class MyBroadcastReceiver(private val channel: WifiP2pManager.Channel,
 
         activity.showInfo("MyBroadcastReceiver.connect", "Connecting to device ${device.deviceName}")
 
-        val config = WifiP2pConfig().apply {
-            deviceAddress = device.deviceAddress
-            wps.setup = WpsInfo.PBC
-        }
+        val configBuilder = WifiP2pConfig.Builder()
+        configBuilder.setDeviceAddress(MacAddress.fromString(device.deviceAddress))
+        configBuilder.enablePersistentMode(false) // Reconnecting with a fully paired device fails
+                                                  // so disable persistent mode to prevent saving the
+                                                  // pairing info on the Android side
+        val config = configBuilder.build()
+        config.wps.setup = WpsInfo.PBC
 
         manager.connect(channel, config, object : WifiP2pManager.ActionListener {
 

@@ -17,7 +17,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.wifidirecttests2.databinding.ActivityMainBinding
-import kotlinx.coroutines.sync.Mutex
 
 class MainActivity : AppCompatActivity() {
 
@@ -30,20 +29,14 @@ class MainActivity : AppCompatActivity() {
     private val discoveredDevices = mutableListOf<String>()
     private lateinit var discoveredDevicesAdapter: ArrayAdapter<String>
 
-    private val backgroundLog = mutableListOf<String>()
     private val logMessages = mutableListOf<String>()
     private lateinit var logMessageAdapter: ArrayAdapter<String>
 
-    private var permissionsToRequest = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES)
-    enum class PermissionState {
-        Unknown,
-        Granted,
-        Denied
-    }
+    private var arePermissionsGranted = false
+    private var permissionsToRequest = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES)
+    private lateinit var permissionsRequest: ActivityResultLauncher<Array<String>>
 
-    private var permissionStates = HashMap<String, PermissionState>()
-    private var permissionRequests = HashMap<String, ActivityResultLauncher<String>>()
-
+    @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -79,91 +72,57 @@ class MainActivity : AppCompatActivity() {
 
         @SuppressLint("MissingPermission") // Checked with areAllPermissionsGranted
         binding.listDiscoveredDevices.setOnItemClickListener { parent, view, position, id ->
+
+            if (position == 0) {
+                return@setOnItemClickListener
+            }
+
             val deviceName = discoveredDevices[position]
             showInfo("listDiscoveredDevices.ClickListener", "Clicked on item[$position]: '$deviceName'")
-            if (areAllPermissionsGranted()) {
-                receiver.connect(position - 1) // -1 as we add one item as a label
-            }
+            receiver.connect(position - 1) // -1 as we add one item as a label
         }
 
         logMessageAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, logMessages)
         binding.listLog.adapter = logMessageAdapter
         logMessageAdapter.notifyDataSetChanged()
 
-        permissionsToRequest.forEach { perm ->
-            permissionStates.put(perm, PermissionState.Unknown)
-        }
+        permissionsRequest = registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()) { results ->
+                var allPermsGranted = true
+                results.forEach { result ->
+                    if (result.value) {
+                        showInfo("btnRequestPermissions", "Permission ${result.key} is now granted after requesting it.")
+                    }
+                    else {
+                        showError("btnRequestPermissions", "Permission ${result.key} was denied after requesting it.")
+                        allPermsGranted = false
+                    }
+                }
 
-        permissionsToRequest.forEach { perm ->
-            var reg = registerForActivityResult(ActivityResultContracts.RequestPermission()) { result ->
-                if (result) {
-                    permissionStates[perm] = PermissionState.Granted
-                    showInfo("btnRequestPermissions", "Permission $perm is now granted after requesting it.")
+                if (allPermsGranted) {
+                    checkPermsAndStartDiscovery(false)
                 }
-                else {
-                    permissionStates[perm] = PermissionState.Denied
-                    showError("btnRequestPermissions", "Permission $perm was denied after requesting it.")
-                }
-            }
-            permissionRequests.put(perm, reg)
-        }
-
-        binding.btnRequestPermissions.setOnClickListener {
-            permissionsToRequest.forEach { perm ->
-                when(permissionStates[perm]) {
-                    PermissionState.Unknown -> {
-                        val permissionState = ActivityCompat.checkSelfPermission(this, perm)
-                        if (permissionState == PackageManager.PERMISSION_GRANTED) {
-                            permissionStates[perm] = PermissionState.Granted
-                        }
-                        else {
-                            permissionRequests[perm]?.launch(perm)
-                        }
-                    }
-                    PermissionState.Granted -> {
-                        showInfo("btnRequestPermissions", "Permission $perm was already granted.")
-                    }
-                    PermissionState.Denied -> {
-                        permissionRequests[perm]?.launch(perm)
-                    }
-                    null -> {
-                        showError("btnRequestPermissions", "Called with empty param")
-                    }
-                }
-            }
         }
 
         binding.btnStartDiscovery.setOnClickListener {
-            if (areAllPermissionsGranted()) {
-                showInfo("btnRequestPermissions", "Started discovery.")
-                receiver.discoverPeers()
-            }
-            else {
-                showWarning("btnRequestPermissions", "Did not start discovery, as not all permissions were granted.")
-            }
-        }
-
-        binding.btnDeleteAllWifiGroups.setOnClickListener {
-            receiver.deletePersistentGroups()
-        }
-
-        binding.btnListAllWifiGroups.setOnClickListener {
-            // receiver.listPersistentGroups()
-            logMessages.addAll(backgroundLog)
-            backgroundLog.clear()
-            logMessageAdapter.notifyDataSetChanged()
+            checkPermsAndStartDiscovery(true)
         }
     }
 
-    private fun areAllPermissionsGranted() : Boolean {
-        var allPermsGranted = true
-        permissionStates.forEach { item ->
-            if (item.value != PermissionState.Granted) {
-                allPermsGranted = false
-                showError("btnStartDiscovery", "Permission ${item.key} was not granted.")
+    private fun checkPermsAndStartDiscovery(fromButton : Boolean) {
+        showInfo("checkPermsAndStartDiscovery", "Trying to start discovery. FromButton = $fromButton")
+        var allPermissionsGranted = true
+        permissionsToRequest.forEach { perm ->
+            if (ActivityCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_DENIED) {
+                allPermissionsGranted = false
             }
         }
-        return allPermsGranted
+
+        if (allPermissionsGranted) {
+            receiver.discoverPeers()
+        } else if (fromButton) {
+            permissionsRequest.launch(permissionsToRequest)
+        }
     }
 
     public fun setDiscoveredDevices(devices: List<String>) {
@@ -206,10 +165,5 @@ class MainActivity : AppCompatActivity() {
         val msgToDisplay = concatLogString(msg, funcName)
         logMessages.add("NFO: $msgToDisplay")
         logMessageAdapter.notifyDataSetChanged()
-    }
-
-    fun enqueueInfo(funcName: String, msg: String) {
-        val msgToDisplay = concatLogString(msg, funcName)
-        backgroundLog.add("NFO: $msgToDisplay")
     }
 }
