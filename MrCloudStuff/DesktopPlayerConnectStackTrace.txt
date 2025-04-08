@@ -1,0 +1,54 @@
+File                                            Function Name                   Line Number             Comment
+
+DesktopPlayerApp.cpp                            ConnectOrListen                 802
+DesktopSimulation.cpp                           ConnectInternal                 1262
+PlayerContextCore.cpp                           ConnectInternal                 731
+                                                Connect                         1705
+                                                ConnectUnderConnectionLock      1777
+ConnectionManager.cpp                           Connect                         320
+NetworkContextClient.cpp                        Connect                         82                      Constructor sets m_handshakeHostname and m_handshakePort to connect
+                                                Connect                         95                      Actually connecting
+                                                ConnectUnderLock                323                     Not actually stepping in. Just telemetry
+                                                ConnectUnderLock                335                     Is going into an HttpHandshakeClient
+HttpHandshakeClient                             BeginHandshake                  249
+                                                BeginRequest                    392                     Only using the data into the httpRequest, but that is not all
+
+
+
+#### Sending the Request to the server ####
+                                                BeginRequest                    462                     This is only sending the request. Maybe the http sender is constructed somewhere else
+httpsclientcontext.cpp                          BeginRequest                    71                      Only sets m_currentMessage, which should be picked up somewhere
+
+
+
+#### Opening the http context including the connection ####
+HttpHandshakeClient.cpp                         BeginRequest                    461
+httphelpers.cpp                                 CreateContext                   325                     Setting the properties for the channel creation
+                                                CreateContext                   329 (333)               Calling create channel with TLS or without. We'll follow the TLS code as we probably want to use TLS.
+                                                                                                        Create context is going into a PartsFactory which was created with the following parameters;
+                                                                                                            'DCTFactory::GetWellKnownStackDescription(DCTFactory::Stack::RawTlsOverTcp)'
+                                                                                                            RawTlsOverTcp resolves to a stack of:
+                                                                                                                BeginStack(BASIX_COMPONENT_TYPE_TCP, properties); // dctfactory.cpp - 289
+                                                                                                                AddStackLayer(result, BASIX_COMPONENT_TYPE_TLS);  // dctfactory.cpp - 294
+                                                                                                            Props is set with DCT_CHANNEL_PROP_NAME_TCP_CONNECT_ADDR to the target host and port
+dctfactory.cpp                                  CreateChannel                   52
+                                                CreateFilter                    64                      Calls it with WinsockTCP and AsioTCP, but only creates WinsockTCP
+factory.h                                       Create                          253                     This is where the WinsockTCP is used to create the TCP thing
+winsocktcpdct.cpp                               <Constructor>                   ???                     Just constructs the object, but does not configure it. That is done somewhere else, but that
+                                                                                                        does not matter, because we can now breakpoint into that function
+
+
+
+#### Configuring the TCP socket ####
+winsocktcpdct.cpp                               ConfigureIOSocket               Entry on 375            
+                                                                                424                     Create the socket
+                                                                                451                     Connect the socket to the address
+                                                                                536                     Save the connected socket into m_connectedSocket
+
+
+
+#### Use the socket ####
+winsockdctbase.cpp                              InternalQueueWrite              195                     Retrieve the saved socket from m_connectedSocket
+                                                                                206                     Set the socket of the ioRequest to the connectedSocket
+                                                                                235                     Call PostSocketWrite to post a write on the socket
+winsocktcpdct.cpp                               PostSocketWrite                 214                     Send out the data
