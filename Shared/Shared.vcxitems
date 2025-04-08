@@ -19,6 +19,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)pairing.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)pch.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)socketReaderWriter.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)winsockutils.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(MSBuildThisFileDirectory)globalOutput.cpp" />

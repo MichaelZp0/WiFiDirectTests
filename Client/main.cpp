@@ -14,8 +14,7 @@
 
 #pragma comment(lib, "iphlpapi.lib")
 
-#define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x)) 
-#define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
+#include "winsockutils.h"
 
 #include "socketReaderWriter.h"
 #include "constants.h"
@@ -61,128 +60,6 @@ void OnStopped(DeviceWatcher const& watcher, winrt::Windows::Foundation::IInspec
     GlobalOutput::WriteLocked([&deviceInfo]() { std::wcout << L"DeviceWatcher stopped: " << std::endl; });
 }
 
-struct MyAdapterInfo
-{
-    std::string Name;
-    std::string IPAddress;
-    std::string IPMask;
-};
-
-std::optional<std::vector<MyAdapterInfo>> GetAdapterInfos()
-{
-	std::vector<MyAdapterInfo> adapterInfos;
-
-    PIP_ADAPTER_INFO pAdapterInfo;
-    PIP_ADAPTER_INFO pAdapter = NULL;
-    DWORD dwRetVal = 0;
-
-    ULONG ulOutBufLen = sizeof(IP_ADAPTER_INFO);
-    pAdapterInfo = (IP_ADAPTER_INFO*)MALLOC(sizeof(IP_ADAPTER_INFO));
-    if (pAdapterInfo == NULL)
-    {
-        printf("Error allocating memory needed to call GetAdaptersinfo\n");
-        return std::nullopt;
-    }
-
-    // Make an initial call to GetAdaptersInfo to get
-    // the necessary size into the ulOutBufLen variable
-    if (GetAdaptersInfo(pAdapterInfo, &ulOutBufLen) == ERROR_BUFFER_OVERFLOW)
-    {
-        FREE(pAdapterInfo);
-        pAdapterInfo = (IP_ADAPTER_INFO*)MALLOC(ulOutBufLen);
-        if (pAdapterInfo == NULL)
-        {
-            printf("Error allocating memory needed to call GetAdaptersinfo\n");
-            return std::nullopt;
-        }
-    }
-
-    if ((dwRetVal = GetAdaptersInfo(pAdapterInfo, &ulOutBufLen)) == NO_ERROR)
-    {
-        pAdapter = pAdapterInfo;
-        while (pAdapter)
-        {
-			adapterInfos.push_back(MyAdapterInfo{
-				pAdapter->AdapterName,
-				pAdapter->IpAddressList.IpAddress.String,
-				pAdapter->IpAddressList.IpMask.String
-				});
-            pAdapter = pAdapter->Next;
-        }
-    }
-    else
-    {
-        GlobalOutput::WriteLocked("GetAdaptersInfo failed with error: " + std::to_string(dwRetVal), true);
-    }
-
-    if (pAdapterInfo)
-    {
-        FREE(pAdapterInfo);
-    }
-
-    return adapterInfos;
-}
-
-std::array<uint8_t, 4> IpFromString(std::string ip)
-{
-    std::array<uint8_t, 4> serverIpArray = { 0, 0, 0, 0 };
-
-    for (int i = ip.size() - 1, k = 0, u = 3; i >= 0; --i)
-    {
-        if (ip[i] == '.')
-        {
-            k = 0;
-            --u;
-            continue;
-        }
-
-        serverIpArray[u] += (ip[i] - '0') * std::pow(10, k);
-        ++k;
-    }
-
-    return serverIpArray;
-}
-
-std::array<uint8_t, 4> IpFromString(std::wstring ip)
-{
-    std::array<uint8_t, 4> serverIpArray = { 0, 0, 0, 0 };
-
-    for (int i = ip.size() - 1, k = 0, u = 3; i >= 0; --i)
-    {
-        if (ip[i] == L'.')
-        {
-            k = 0;
-            --u;
-            continue;
-        }
-
-        serverIpArray[u] += (ip[i] - L'0') * std::pow(10, k);
-        ++k;
-    }
-
-    return serverIpArray;
-}
-
-std::array<uint8_t, 4> IpFromString(winrt::hstring ip)
-{
-    std::array<uint8_t, 4> serverIpArray = { 0, 0, 0, 0 };
-
-    for (int i = ip.size() - 1, k = 0, u = 3; i >= 0; --i)
-    {
-        if (ip[i] == L'.')
-        {
-            k = 0;
-            --u;
-            continue;
-        }
-
-        serverIpArray[u] += (ip[i] - L'0') * std::pow(10, k);
-        ++k;
-    }
-
-    return serverIpArray;
-}
-
 IAsyncAction ConnectToDevice(DeviceInformation& info)
 {
     co_await Pairing::PairIfNeeded(info);
@@ -221,7 +98,7 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
     });
 
     winrt::hstring serverIp = endpointPairs.GetAt(0).RemoteHostName().DisplayName();
-	std::array<uint8_t, 4> serverIpArray = IpFromString(serverIp);
+	std::array<uint8_t, 4> serverIpArray = winsockutils::IpFromString(serverIp);
 
     GlobalOutput::WriteLocked("Waiting for server to start listening...\n");
 
@@ -258,8 +135,7 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
         co_return;
     }
 
-    std::string localAddr;
-    auto adapterInfos = GetAdapterInfos();
+    auto adapterInfos = winsockutils::GetAdapterInfos();
 	if (!adapterInfos.has_value())
 	{
 		GlobalOutput::WriteLocked("Failed to get adapter info", true);
@@ -268,50 +144,21 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
 		co_return;
 	}
 
-    for (auto adapterInfo : adapterInfos.value())
+    std::optional<std::string> localAddr = winsockutils::GetOwnIpInMatchingAdapter(adapterInfos.value(), serverIpArray);
+
+    if (!localAddr.has_value())
     {
-        std::array<uint8_t, 4> ipMask = IpFromString(adapterInfo.IPMask);
-        std::array<uint8_t, 4> myIpAddr = IpFromString(adapterInfo.IPAddress);
-
-        if (ipMask[3] == 0 && ipMask[2] == 0 && ipMask[1] == 0 && ipMask[0] == 0)
-        {
-            continue;
-        }
-
-        if (myIpAddr[3] == 0 && myIpAddr[2] == 0 && myIpAddr[1] == 0 && myIpAddr[0] == 0)
-        {
-            continue;
-        }
-
-        std::array<uint8_t, 4> myIpMasked;
-        std::array<uint8_t, 4> serverIpMasked;
-
-        bool areTheSame = true;
-
-        for (int i = 0; i < 4; ++i)
-        {
-			myIpMasked[i] = myIpAddr[i] & ipMask[i];
-			serverIpMasked[i] = serverIpArray[i] & ipMask[i];
-
-			if (myIpMasked[i] != serverIpMasked[i])
-			{
-				areTheSame = false;
-                break;
-			}
-        }
-
-		if (areTheSame)
-		{
-			localAddr = adapterInfo.IPAddress;
-			break;
-		}
+        GlobalOutput::WriteLocked("Failed to match own IP to any adapter", true);
+        closesocket(ConnectSocket);
+        WSACleanup();
+        co_return;
     }
 
     // Bind the socket to a specific network interface
     sockaddr_in localAddress;
     localAddress.sin_family = AF_INET;
     localAddress.sin_port = 0; // Any available port
-    inet_pton(AF_INET, localAddr.c_str(), &localAddress.sin_addr); // Replace with your local interface IP
+    inet_pton(AF_INET, localAddr.value().c_str(), &localAddress.sin_addr); // Replace with your local interface IP
 
     if (bind(ConnectSocket, (sockaddr*)&localAddress, sizeof(localAddress)) == SOCKET_ERROR) {
         std::cerr << "Bind failed: " << WSAGetLastError() << std::endl;

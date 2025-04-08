@@ -16,13 +16,11 @@
 
 #pragma comment(lib, "iphlpapi.lib")
 
-#define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x)) 
-#define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
-
 #include "socketReaderWriter.h"
 #include "constants.h"
 #include "globalOutput.h"
 #include "pairing.h"
+#include "winsockutils.h"
 
 using namespace winrt;
 using namespace Windows::Foundation;
@@ -103,6 +101,9 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
     co_await listener.BindEndpointAsync(endpointPairs.GetAt(0).LocalHostName(), serverPort);
     GlobalOutput::WriteLocked([]() { std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl; });
 
+    winrt::hstring clientIp = endpointPairs.GetAt(0).RemoteHostName().DisplayName();
+    std::array<uint8_t, 4> clientIpArray = winsockutils::IpFromString(clientIp);
+
     int iResult = 0;
     struct addrinfo* result = NULL, * ptr = NULL, hints;
 
@@ -132,6 +133,27 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
     }
 
     GlobalOutput::WriteLocked("Binding...", true);
+
+    auto adapterInfos = winsockutils::GetAdapterInfos();
+    if (!adapterInfos.has_value())
+    {
+        GlobalOutput::WriteLocked("Failed to get adapter info", true);
+        closesocket(ListenSocket);
+        WSACleanup();
+        co_return;
+    }
+
+    std::optional<std::string> localAddr = winsockutils::GetOwnIpInMatchingAdapter(adapterInfos.value(), clientIpArray);
+
+    if (!localAddr.has_value())
+    {
+        GlobalOutput::WriteLocked("Failed to match own IP to any adapter", true);
+        closesocket(ListenSocket);
+        WSACleanup();
+        co_return;
+    }
+
+    inet_pton(AF_INET, localAddr.value().c_str(), &result->ai_addr); // Replace with your local interface IP
 
     // Setup the TCP listening socket
     iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
