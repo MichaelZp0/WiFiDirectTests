@@ -153,7 +153,8 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
         co_return;
     }
 
-    inet_pton(AF_INET, localAddr.value().c_str(), &result->ai_addr); // Replace with your local interface IP
+	sockaddr_in* localAddress = (sockaddr_in*)result->ai_addr;
+    inet_pton(AF_INET, localAddr.value().c_str(), &localAddress->sin_addr); // Replace with your local interface IP
 
     // Setup the TCP listening socket
     iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
