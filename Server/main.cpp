@@ -101,35 +101,35 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
     co_await listener.BindEndpointAsync(endpointPairs.GetAt(0).LocalHostName(), serverPort);
     GlobalOutput::WriteLocked([]() { std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl; });
 
-    winrt::hstring clientIp = endpointPairs.GetAt(0).RemoteHostName().DisplayName();
-    std::array<uint8_t, 4> clientIpArray = winsockutils::IpFromString(clientIp.c_str());
+  //  winrt::hstring clientIp = endpointPairs.GetAt(0).RemoteHostName().DisplayName();
+  //  std::array<uint8_t, 4> clientIpArray = winsockutils::IpFromString(clientIp.c_str());
 
-    auto adapterInfos = winsockutils::GetAdapterInfos();
-    if (!adapterInfos.has_value())
-    {
-		GlobalOutput::WriteLocked("GetAdapterInfos failed!", true);
-        co_return;
-    }
+  //  auto adapterInfos = winsockutils::GetAdapterInfos();
+  //  if (!adapterInfos.has_value())
+  //  {
+		//GlobalOutput::WriteLocked("GetAdapterInfos failed!", true);
+  //      co_return;
+  //  }
 
-    std::optional<std::string> localAddr = winsockutils::GetOwnIpInMatchingAdapter(adapterInfos.value(), clientIpArray);
+  //  std::optional<std::string> localAddr = winsockutils::GetOwnIpInMatchingAdapter(adapterInfos.value(), clientIpArray);
 
-    if (!localAddr.has_value())
-    {
-        GlobalOutput::WriteLocked("Failed to match own IP to any adapter");
-		co_return;
-    }
+  //  if (!localAddr.has_value())
+  //  {
+  //      GlobalOutput::WriteLocked("Failed to match own IP to any adapter");
+		//co_return;
+  //  }
 
-    std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer(localAddr.value(), winSockPort);
+  //  std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer(localAddr.value(), winSockPort);
 
-    if (openServerError.has_value())
-    {
-        GlobalOutput::WriteLocked(
-            "OpenServer failed: " +
-            std::to_string(openServerError->code) +
-            " - " +
-            openServerError->message);
-        co_return;
-    }
+  //  if (openServerError.has_value())
+  //  {
+  //      GlobalOutput::WriteLocked(
+  //          "OpenServer failed: " +
+  //          std::to_string(openServerError->code) +
+  //          " - " +
+  //          openServerError->message);
+  //      co_return;
+  //  }
 }
 
 int main()

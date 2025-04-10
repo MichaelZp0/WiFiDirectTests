@@ -120,30 +120,30 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
 
     GlobalOutput::WriteLocked("HELO done between server/client.\n");
 
-    auto adapterInfos = winsockutils::GetAdapterInfos();
-    if (!adapterInfos.has_value())
-    {
-        GlobalOutput::WriteLocked("Failed to get adapter info", true);
-        co_return;
-    }
+    //auto adapterInfos = winsockutils::GetAdapterInfos();
+    //if (!adapterInfos.has_value())
+    //{
+    //    GlobalOutput::WriteLocked("Failed to get adapter info", true);
+    //    co_return;
+    //}
 
-    std::array<uint8_t, 4> serverIpArray = winsockutils::IpFromString(serverIp.c_str());
-    std::optional<std::string> localAddr = winsockutils::GetOwnIpInMatchingAdapter(adapterInfos.value(), serverIpArray);
-    std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient(serverIpStr.str(), "localAddr", winSockPort);
+    //std::array<uint8_t, 4> serverIpArray = winsockutils::IpFromString(serverIp.c_str());
+    //std::optional<std::string> localAddr = winsockutils::GetOwnIpInMatchingAdapter(adapterInfos.value(), serverIpArray);
+    //std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient(serverIpStr.str(), "localAddr", winSockPort);
 
-    if (openClientError.has_value())
-    {
-        GlobalOutput::WriteLocked(
-            "OpenServer failed: " +
-            std::to_string(openClientError->code) +
-            " - " +
-            openClientError->message);
-        co_return;
-    }
-    else
-    {
-        GlobalOutput::WriteLocked([&serverIp]() { std::wcout << L"Connected to server at" << serverIp.c_str() << " on port " << winSockPort << std::endl; });
-    }
+    //if (openClientError.has_value())
+    //{
+    //    GlobalOutput::WriteLocked(
+    //        "OpenServer failed: " +
+    //        std::to_string(openClientError->code) +
+    //        " - " +
+    //        openClientError->message);
+    //    co_return;
+    //}
+    //else
+    //{
+    //    GlobalOutput::WriteLocked([&serverIp]() { std::wcout << L"Connected to server at" << serverIp.c_str() << " on port " << winSockPort << std::endl; });
+    //}
 }
 
 int main()
