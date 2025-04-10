@@ -18,7 +18,8 @@ int main()
     }
 
     //std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient("127.0.0.1", 50011);
-    std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient("192.168.0.114", "192.168.0.177", 50011);
+    //std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient("192.168.0.114", "192.168.0.177", 50011);
+    std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient("192.168.137.1", "192.168.137.247", 50051);
     if (openClientError.has_value())
     {
         std::cout << "OpenClient failed: " << std::to_string(openClientError->code) << " - " << openClientError->message << std::endl;

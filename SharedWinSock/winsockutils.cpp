@@ -254,8 +254,9 @@ std::optional<winsockutils::Error> winsockutils::OpenClient(std::string serverIp
     ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (ConnectSocket == INVALID_SOCKET)
     {
+        std::string error = "Error at socket(): " + std::to_string(WSAGetLastError());
         WSACleanup();
-        return Error(-1, "Error at socket(): " + std::to_string(WSAGetLastError()));
+        return Error(-1, error);
     }
 
     // Bind the socket to a specific network interface
@@ -279,12 +280,14 @@ std::optional<winsockutils::Error> winsockutils::OpenClient(std::string serverIp
     inet_pton(AF_INET, serverIp.c_str(), &serverAddress.sin_addr);
 
     // Connect to the server
+	GlobalOutput::WriteLocked("Trying to connect to server...", true);
     int iResult = connect(ConnectSocket, (sockaddr*)&serverAddress, sizeof(serverAddress));
     if (iResult == SOCKET_ERROR)
     {
+        std::string error = "Unable to connect to server: " + std::to_string(WSAGetLastError());
         closesocket(ConnectSocket);
         WSACleanup();
-        return Error(-1, "Unable to connect to server: " + std::to_string(WSAGetLastError()));
+        return Error(-1, error);
     }
 
 	GlobalOutput::WriteLocked("Connected to server!", true);

@@ -18,7 +18,8 @@ int main()
     }
 
     //std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer("0.0.0.0", 50011);
-    std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer("192.168.0.114", 50011);
+    //std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer("192.168.0.114", 50011);
+    std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer("192.168.137.1", 50051);
     if (openServerError.has_value())
     {
         std::cout << "OpenServer failed: " << std::to_string(openServerError->code) << " - " << openServerError->message << std::endl;
