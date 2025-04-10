@@ -160,7 +160,7 @@ void ConnectWinSock()
     else
     {
         GlobalOutput::WriteLocked([]() {
-            std::wcout << L"Connected to server at" << serverIp->c_str() << " on port " << winSockPort << std::endl;
+            std::wcout << L"Connected to server at " << serverIp->c_str() << " on port " << winSockPort << std::endl;
             });
     }
 }
