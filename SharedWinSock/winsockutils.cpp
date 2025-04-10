@@ -168,7 +168,7 @@ std::optional<winsockutils::Error> winsockutils::InitializeWinSock()
     return std::nullopt;
 }
 
-std::optional<winsockutils::Error> winsockutils::OpenServer(std::string clientIp, uint32_t port)
+std::optional<winsockutils::Error> winsockutils::OpenServer(std::string serverIp, uint32_t port)
 {
     int iResult = 0;
     struct addrinfo* result = NULL, * ptr = NULL, hints;
@@ -199,7 +199,7 @@ std::optional<winsockutils::Error> winsockutils::OpenServer(std::string clientIp
     GlobalOutput::WriteLocked("Binding...", true);
 
     sockaddr_in* localAddress = (sockaddr_in*)result->ai_addr;
-    inet_pton(AF_INET, clientIp.c_str(), &localAddress->sin_addr); // Replace with your local interface IP
+    inet_pton(AF_INET, serverIp.c_str(), &localAddress->sin_addr); // Replace with your local interface IP
 
     // Setup the TCP listening socket
     iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
@@ -247,7 +247,7 @@ std::optional<winsockutils::Error> winsockutils::OpenServer(std::string clientIp
     return std::nullopt;
 }
 
-std::optional<winsockutils::Error> winsockutils::OpenClient(std::string serverIp, uint32_t port)
+std::optional<winsockutils::Error> winsockutils::OpenClient(std::string serverIp, std::string localIp, uint32_t port)
 {
     // Create a socket
     SOCKET ConnectSocket = INVALID_SOCKET;
@@ -262,7 +262,7 @@ std::optional<winsockutils::Error> winsockutils::OpenClient(std::string serverIp
     sockaddr_in localAddress;
     localAddress.sin_family = AF_INET;
     localAddress.sin_port = 0; // Any available port
-    inet_pton(AF_INET, serverIp.c_str(), &localAddress.sin_addr); // Replace with your local interface IP
+    inet_pton(AF_INET, localIp.c_str(), &localAddress.sin_addr); // Replace with your local interface IP
 
     if (bind(ConnectSocket, (sockaddr*)&localAddress, sizeof(localAddress)) == SOCKET_ERROR)
     {

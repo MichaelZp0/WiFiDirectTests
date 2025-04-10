@@ -32,6 +32,6 @@ public:
 
     static std::optional<Error> InitializeWinSock();
 
-    static std::optional<Error> OpenServer(std::string clientIp, uint32_t port);
-    static std::optional<Error> OpenClient(std::string serverIp, uint32_t port);
+    static std::optional<Error> OpenServer(std::string serverIp, uint32_t port);
+    static std::optional<Error> OpenClient(std::string serverIp, std::string localIp, uint32_t port);
 };

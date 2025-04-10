@@ -129,7 +129,7 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
 
     std::array<uint8_t, 4> serverIpArray = winsockutils::IpFromString(serverIp.c_str());
     std::optional<std::string> localAddr = winsockutils::GetOwnIpInMatchingAdapter(adapterInfos.value(), serverIpArray);
-    std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient(serverIpStr.str(), winSockPort);
+    std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient(serverIpStr.str(), "localAddr", winSockPort);
 
     if (openClientError.has_value())
     {
