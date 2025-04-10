@@ -26,6 +26,7 @@ using namespace Windows::Security::Credentials;
 std::shared_ptr<bool> shouldClose = std::make_shared<bool>(false);
 std::vector<DeviceInformation> foundDevices;
 std::optional<SocketReaderWriter> sockReadWrite;
+std::optional<winrt::hstring> serverIp = std::nullopt;
 
 void OnDeviceAdded(DeviceWatcher const& watcher, DeviceInformation const& deviceInfo)
 {
@@ -90,9 +91,7 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
         std::wcout << "Connected to device with IP " << endpointPairs.GetAt(0).RemoteHostName().DisplayName().c_str() << " on port " << serverPort.c_str() << std::endl;
     });
 
-    winrt::hstring serverIp = endpointPairs.GetAt(0).RemoteHostName().DisplayName();
-    std::stringstream serverIpStr;
-    serverIpStr << serverIp.c_str();
+    serverIp = endpointPairs.GetAt(0).RemoteHostName().DisplayName();
 	
     GlobalOutput::WriteLocked("Waiting for server to start listening...\n");
 
@@ -119,26 +118,38 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
     sockReadWrite->WriteMessage(L"Server says hello.");
 
     GlobalOutput::WriteLocked("HELO done between server/client.\n");
+}
+
+void ConnectWinSock()
+{
+    if (!serverIp.has_value())
+    {
+        GlobalOutput::WriteLocked("Not connected!", true);
+        return;
+    }
+
+    std::stringstream serverIpStrStream;
+    serverIpStrStream << serverIp.value().c_str();
 
     auto adapterInfos = winsockutils::GetAdapterInfos();
     if (!adapterInfos.has_value())
     {
         GlobalOutput::WriteLocked("Failed to get adapter info", true);
-        co_return;
+        return;
     }
 
-    std::array<uint8_t, 4> serverIpArray = winsockutils::IpFromString(serverIp.c_str());
+    std::array<uint8_t, 4> serverIpArray = winsockutils::IpFromString(serverIp->c_str());
     std::optional<std::string> localAddr = winsockutils::GetOwnIpInMatchingAdapter(adapterInfos.value(), serverIpArray);
 
     if (!localAddr.has_value())
     {
-        GlobalOutput::WriteLocked([&serverIp]() {
-            std::wcout << L"Failed to match local address to server address range of " << serverIp.c_str() << "/24" << std::endl;
+        GlobalOutput::WriteLocked([]() {
+            std::wcout << L"Failed to match local address to server address range of " << serverIp->c_str() << "/24" << std::endl;
             });
-        co_return;
+        return;
     }
 
-    std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient(serverIpStr.str(), localAddr.value(), winSockPort);
+    std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient(serverIpStrStream.str(), localAddr.value(), winSockPort);
 
     if (openClientError.has_value())
     {
@@ -147,11 +158,13 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
             std::to_string(openClientError->code) +
             " - " +
             openClientError->message);
-        co_return;
+        return;
     }
     else
     {
-        GlobalOutput::WriteLocked([&serverIp]() { std::wcout << L"Connected to server at" << serverIp.c_str() << " on port " << winSockPort << std::endl; });
+        GlobalOutput::WriteLocked([]() {
+            std::wcout << L"Connected to server at" << serverIp->c_str() << " on port " << winSockPort << std::endl;
+            });
     }
 }
 
@@ -192,6 +205,7 @@ int main()
     GlobalOutput::WriteLocked("2 x - Connect to Device number x\n");
     GlobalOutput::WriteLocked("3 [start|stop] - Start/stop the device watcher\n");
     GlobalOutput::WriteLocked("4 <Message> - Send a message to the server\n");
+    GlobalOutput::WriteLocked("5 - Try to connect to server via winsock\n");
 
     while (true)
     {
@@ -277,6 +291,10 @@ int main()
 			{
 				GlobalOutput::WriteLocked("Not connected to a server", true);
 			}
+        }
+        else if (input._Starts_with("5"))
+        {
+            ConnectWinSock();
         }
         else if (input == "q" || input == "quit" || input == "e" || input == "exit")
         {
