@@ -102,10 +102,8 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
     GlobalOutput::WriteLocked([]() { std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl; });
 
     winrt::hstring serverIp = endpointPairs.GetAt(0).LocalHostName().DisplayName();
-    std::stringstream serverIpStr;
-    serverIpStr << serverIp.c_str();
 
-    std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer(serverIpStr.str(), winSockPort);
+    std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer(winrt::to_string(serverIp), winSockPort);
 
     if (openServerError.has_value())
     {

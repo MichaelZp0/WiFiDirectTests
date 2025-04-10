@@ -128,9 +128,6 @@ void ConnectWinSock()
         return;
     }
 
-    std::stringstream serverIpStrStream;
-    serverIpStrStream << serverIp.value().c_str();
-
     auto adapterInfos = winsockutils::GetAdapterInfos();
     if (!adapterInfos.has_value())
     {
@@ -149,7 +146,7 @@ void ConnectWinSock()
         return;
     }
 
-    std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient(serverIpStrStream.str(), localAddr.value(), winSockPort);
+    std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient(winrt::to_string(serverIp.value()), localAddr.value(), winSockPort);
 
     if (openClientError.has_value())
     {
