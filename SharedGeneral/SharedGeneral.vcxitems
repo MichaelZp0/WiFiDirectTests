@@ -3,7 +3,8 @@
   <PropertyGroup Label="Globals">
     <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
-    <ItemsProjectGuid>{4a4f05b0-5af2-4996-98b6-2bb93bd5ab40}</ItemsProjectGuid>
+    <ItemsProjectGuid>{883fd523-c950-4361-800c-3027a51fee04}</ItemsProjectGuid>
+    <ItemsProjectName>SharedGeneral</ItemsProjectName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -14,12 +15,11 @@
     <ProjectCapability Include="SourceItemsFromImports" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="$(MSBuildThisFileDirectory)pairing.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)constants.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)globalOutput.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)pch.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)socketReaderWriter.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(MSBuildThisFileDirectory)pairing.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)socketReaderWriter.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)globalOutput.cpp" />
   </ItemGroup>
 </Project>

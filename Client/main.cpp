@@ -8,14 +8,7 @@
 #include <optional>
 #include <sstream>
 
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <iphlpapi.h>
-
-#pragma comment(lib, "iphlpapi.lib")
-
 #include "winsockutils.h"
-
 #include "socketReaderWriter.h"
 #include "constants.h"
 #include "globalOutput.h"
@@ -98,8 +91,9 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
     });
 
     winrt::hstring serverIp = endpointPairs.GetAt(0).RemoteHostName().DisplayName();
-	std::array<uint8_t, 4> serverIpArray = winsockutils::IpFromString(serverIp);
-
+    std::stringstream serverIpStr;
+    serverIpStr << serverIp.c_str();
+	
     GlobalOutput::WriteLocked("Waiting for server to start listening...\n");
 
     // Wait for server to start listening on a socket
@@ -126,71 +120,30 @@ IAsyncAction ConnectToDevice(DeviceInformation& info)
 
     GlobalOutput::WriteLocked("HELO done between server/client.\n");
 
-    // Create a socket
-    SOCKET ConnectSocket = INVALID_SOCKET;
-    ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (ConnectSocket == INVALID_SOCKET) {
-		GlobalOutput::WriteLocked("Error at socket(): " + std::to_string(WSAGetLastError()), true);
-        WSACleanup();
-        co_return;
-    }
-
     auto adapterInfos = winsockutils::GetAdapterInfos();
-	if (!adapterInfos.has_value())
-	{
-		GlobalOutput::WriteLocked("Failed to get adapter info", true);
-		closesocket(ConnectSocket);
-		WSACleanup();
-		co_return;
-	}
-
-    std::optional<std::string> localAddr = winsockutils::GetOwnIpInMatchingAdapter(adapterInfos.value(), serverIpArray);
-
-    if (!localAddr.has_value())
+    if (!adapterInfos.has_value())
     {
-        GlobalOutput::WriteLocked("Failed to match own IP to any adapter", true);
-        closesocket(ConnectSocket);
-        WSACleanup();
+        GlobalOutput::WriteLocked("Failed to get adapter info", true);
         co_return;
     }
 
-    // Bind the socket to a specific network interface
-    sockaddr_in localAddress;
-    localAddress.sin_family = AF_INET;
-    localAddress.sin_port = 0; // Any available port
-    inet_pton(AF_INET, localAddr.value().c_str(), &localAddress.sin_addr); // Replace with your local interface IP
+    std::array<uint8_t, 4> serverIpArray = winsockutils::IpFromString(serverIp.c_str());
+    std::optional<std::string> localAddr = winsockutils::GetOwnIpInMatchingAdapter(adapterInfos.value(), serverIpArray);
+    std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient(serverIpStr.str(), winSockPort);
 
-    if (bind(ConnectSocket, (sockaddr*)&localAddress, sizeof(localAddress)) == SOCKET_ERROR) {
-        std::cerr << "Bind failed: " << WSAGetLastError() << std::endl;
-        closesocket(ConnectSocket);
-        WSACleanup();
+    if (openClientError.has_value())
+    {
+        GlobalOutput::WriteLocked(
+            "OpenServer failed: " +
+            std::to_string(openClientError->code) +
+            " - " +
+            openClientError->message);
         co_return;
     }
-
-    // Resolve the server address and port
-    sockaddr_in serverAddress;
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(winSockPort);
-
-	std::stringstream ipStream;
-	ipStream << serverIpArray[0] << "." << serverIpArray[1] << "." << serverIpArray[2] << "." << serverIpArray[3];
-
-    inet_pton(AF_INET, ipStream.str().c_str(), &serverAddress.sin_addr);
-
-    // Connect to the server
-    int iResult = connect(ConnectSocket, (sockaddr*)&serverAddress, sizeof(serverAddress));
-    if (iResult == SOCKET_ERROR) {
-		GlobalOutput::WriteLocked("Unable to connect to server: " + std::to_string(WSAGetLastError()), true);
-        closesocket(ConnectSocket);
-        WSACleanup();
-        co_return;
+    else
+    {
+        GlobalOutput::WriteLocked([&serverIp]() { std::wcout << L"Connected to server at" << serverIp.c_str() << " on port " << winSockPort << std::endl; });
     }
-
-    GlobalOutput::WriteLocked([&serverIp]() { std::wcout << L"Connected to server at" << serverIp.c_str() << " on port " << winSockPort << std::endl; });
-
-    // Clean up
-    closesocket(ConnectSocket);
-    WSACleanup();
 }
 
 int main()
@@ -198,10 +151,14 @@ int main()
     init_apartment();
 
     // Initialize WinSock
-    WSADATA wsaData;
-    int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (iResult != 0) {
-        std::cerr << "WSAStartup failed: " << iResult << std::endl;
+    std::optional<winsockutils::Error> initError = winsockutils::InitializeWinSock();
+    if (initError.has_value())
+    {
+        GlobalOutput::WriteLocked(
+            "WSAStartup failed: " +
+            std::to_string(initError->code) +
+            " - " +
+            initError->message);
         return 1;
     }
 

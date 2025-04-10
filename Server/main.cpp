@@ -102,44 +102,12 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
     GlobalOutput::WriteLocked([]() { std::wcout << L"Listening for incoming connections on port " << serverPort.c_str() << " ..." << std::endl; });
 
     winrt::hstring clientIp = endpointPairs.GetAt(0).RemoteHostName().DisplayName();
-    std::array<uint8_t, 4> clientIpArray = winsockutils::IpFromString(clientIp);
-
-    int iResult = 0;
-    struct addrinfo* result = NULL, * ptr = NULL, hints;
-
-    ZeroMemory(&hints, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
-    hints.ai_flags = AI_PASSIVE;
-    
-    // Resolve the local address and port to be used by the server
-    iResult = getaddrinfo(NULL, std::to_string(winSockPort).c_str(), &hints, &result);
-    if (iResult != 0)
-    {
-        printf("getaddrinfo failed: %d\n", iResult);
-        WSACleanup();
-        co_return;
-    }
-
-    // Create a socket
-    SOCKET ListenSocket = INVALID_SOCKET;
-    ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    if (ListenSocket == INVALID_SOCKET)
-    {
-        GlobalOutput::WriteLocked("Error at socket(): " + std::to_string(WSAGetLastError()), true);
-        WSACleanup();
-        co_return;
-    }
-
-    GlobalOutput::WriteLocked("Binding...", true);
+    std::array<uint8_t, 4> clientIpArray = winsockutils::IpFromString(clientIp.c_str());
 
     auto adapterInfos = winsockutils::GetAdapterInfos();
     if (!adapterInfos.has_value())
     {
-        GlobalOutput::WriteLocked("Failed to get adapter info", true);
-        closesocket(ListenSocket);
-        WSACleanup();
+		GlobalOutput::WriteLocked("GetAdapterInfos failed!", true);
         co_return;
     }
 
@@ -147,71 +115,35 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
 
     if (!localAddr.has_value())
     {
-        GlobalOutput::WriteLocked("Failed to match own IP to any adapter", true);
-        closesocket(ListenSocket);
-        WSACleanup();
-        co_return;
+        GlobalOutput::WriteLocked("Failed to match own IP to any adapter");
+		co_return;
     }
 
-	sockaddr_in* localAddress = (sockaddr_in*)result->ai_addr;
-    inet_pton(AF_INET, localAddr.value().c_str(), &localAddress->sin_addr); // Replace with your local interface IP
+    std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer(localAddr.value(), winSockPort);
 
-    // Setup the TCP listening socket
-    iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
-    if (iResult == SOCKET_ERROR)
+    if (openServerError.has_value())
     {
-        printf("bind failed with error: %d\n", WSAGetLastError());
-        freeaddrinfo(result);
-        closesocket(ListenSocket);
-        WSACleanup();
+        GlobalOutput::WriteLocked(
+            "OpenServer failed: " +
+            std::to_string(openServerError->code) +
+            " - " +
+            openServerError->message);
         co_return;
     }
-
-    freeaddrinfo(result);
-
-    GlobalOutput::WriteLocked("Start listenion...", true);
-
-    // Listen on the socket
-    if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR)
-    {
-        printf("Listen failed with error: %ld\n", WSAGetLastError());
-        closesocket(ListenSocket);
-        WSACleanup();
-        co_return;
-    }
-
-    SOCKET ClientSocket = INVALID_SOCKET;
-
-    // Accept a client socket
-    ClientSocket = accept(ListenSocket, NULL, NULL);
-    if (ClientSocket == INVALID_SOCKET)
-    {
-        printf("accept failed: %d\n", WSAGetLastError());
-        closesocket(ListenSocket);
-        WSACleanup();
-        co_return;
-    }
-
-    // No longer need server socket
-    closesocket(ListenSocket);
-
-
-    GlobalOutput::WriteLocked("Accepted connection!", true);
-
-    // Clean up
-    closesocket(ClientSocket);
-    WSACleanup();
 }
 
 int main()
 {
     init_apartment();
 
-    // Initialize WinSock
-    WSADATA wsaData;
-    int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (iResult != 0) {
-        std::cerr << "WSAStartup failed: " << iResult << std::endl;
+    std::optional<winsockutils::Error> initError = winsockutils::InitializeWinSock();
+    if (initError.has_value())
+    {
+		GlobalOutput::WriteLocked(
+            "WSAStartup failed: " +
+            std::to_string(initError->code) +
+            " - " +
+            initError->message);
         return 1;
     }
 
