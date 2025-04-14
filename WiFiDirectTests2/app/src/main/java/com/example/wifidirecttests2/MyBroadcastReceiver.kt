@@ -191,6 +191,8 @@ class MyBroadcastReceiver(private val channel: WifiP2pManager.Channel,
             activity.showInfo("ConnectionListener", "Group formed as group member")
             val clientSocket = ClientSocket(groupOwnerAddress, 50001)
             clientSocket.start()
+            val winSockSocket = ClientSocket(groupOwnerAddress, 50011)
+            winSockSocket.start()
         } else {
             activity.showInfo("ConnectionListener", "Something else")
         }
