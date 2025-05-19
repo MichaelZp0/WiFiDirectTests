@@ -10,21 +10,23 @@
 int main()
 {
     // Initialize WinSock
-    std::optional<winsockutils::Error> initError = winsockutils::InitializeWinSock();
+    std::optional<winsockutils::WinSockUtilsError> initError = winsockutils::InitializeWinSock();
     if (initError.has_value())
     {
-		std::cout << "WSAStartup failed: " << std::to_string(initError->code) << " - " << initError->message << std::endl;
+		std::cout << "WSAStartup failed: " << std::to_string(initError->errorCode) << " - " << initError->errorMessage << std::endl;
         return 1;
     }
 
     //std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer("0.0.0.0", 50011);
     //std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer("192.168.0.114", 50011);
-    std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer("192.168.137.1", 50051);
-    if (openServerError.has_value())
+    winsockutils::ConnectionResult openServerResult = winsockutils::OpenServer("192.168.137.1", 50051);
+    if (!openServerResult.success)
     {
-        std::cout << "OpenServer failed: " << std::to_string(openServerError->code) << " - " << openServerError->message << std::endl;
+        std::cout << "OpenServer failed: " << std::to_string(openServerResult.error.errorCode) << " - " << openServerResult.error.errorMessage << std::endl;
         return 1;
     }
+
+    winsockutils::CloseSocketAndCleanUp(openServerResult.socket.value());
 
     return 0;
 }

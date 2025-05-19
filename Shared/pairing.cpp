@@ -71,16 +71,18 @@ namespace Pairing
     {
         WiFiDirectConnectionParameters connectionParams;
 
-        //DevicePairingKinds devicePairingKinds = DevicePairingKinds::ConfirmOnly | DevicePairingKinds::DisplayPin | DevicePairingKinds::ProvidePin;
+        DevicePairingKinds devicePairingKinds = DevicePairingKinds::ConfirmOnly | DevicePairingKinds::DisplayPin | DevicePairingKinds::ProvidePin;
         //DevicePairingKinds devicePairingKinds = DevicePairingKinds::ProvidePasswordCredential;
         //DevicePairingKinds devicePairingKinds = DevicePairingKinds::ProvideAddress;
-        DevicePairingKinds devicePairingKinds = DevicePairingKinds::ConfirmOnly;
+        //DevicePairingKinds devicePairingKinds = DevicePairingKinds::ConfirmOnly;
 
-        //connectionParams.PreferenceOrderedConfigurationMethods().Append(WiFiDirectConfigurationMethod::PushButton);
-        //connectionParams.PreferenceOrderedConfigurationMethods().Append(WiFiDirectConfigurationMethod::ProvidePin);
-        //connectionParams.PreferenceOrderedConfigurationMethods().Append(WiFiDirectConfigurationMethod::DisplayPin);
+        connectionParams.PreferenceOrderedConfigurationMethods().Append(WiFiDirectConfigurationMethod::PushButton);
+        connectionParams.PreferenceOrderedConfigurationMethods().Append(WiFiDirectConfigurationMethod::ProvidePin);
+        connectionParams.PreferenceOrderedConfigurationMethods().Append(WiFiDirectConfigurationMethod::DisplayPin);
 
         connectionParams.PreferredPairingProcedure(WiFiDirectPairingProcedure::GroupOwnerNegotiation);
+
+        connectionParams.GroupOwnerIntent(15);
 
         DeviceInformationCustomPairing customPairing = pairing.Custom();
 

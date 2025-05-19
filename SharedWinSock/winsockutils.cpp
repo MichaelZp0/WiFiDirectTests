@@ -156,19 +156,19 @@ std::optional<std::string> winsockutils::GetOwnIpInMatchingAdapter(std::vector<M
     return std::nullopt;
 }
 
-std::optional<winsockutils::Error> winsockutils::InitializeWinSock()
+std::optional<winsockutils::WinSockUtilsError> winsockutils::InitializeWinSock()
 {
     // Initialize WinSock
     WSADATA wsaData;
     int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0)
     {
-        return Error(iResult, "Startup failed");
+        return WinSockUtilsError(iResult, "Startup failed");
     }
     return std::nullopt;
 }
 
-std::optional<winsockutils::Error> winsockutils::OpenServer(std::string serverIp, uint32_t port)
+winsockutils::ConnectionResult winsockutils::OpenServer(std::string serverIp, uint32_t port)
 {
     int iResult = 0;
     struct addrinfo* result = NULL, * ptr = NULL, hints;
@@ -183,8 +183,7 @@ std::optional<winsockutils::Error> winsockutils::OpenServer(std::string serverIp
     iResult = getaddrinfo(NULL, std::to_string(port).c_str(), &hints, &result);
     if (iResult != 0)
     {
-        WSACleanup();
-        return Error(iResult, "getaddrinfo failed");
+        return ConnectionResult::CreateError(iResult, "getaddrinfo failed: " + std::to_string(WSAGetLastError()));
     }
 
     // Create a socket
@@ -192,8 +191,7 @@ std::optional<winsockutils::Error> winsockutils::OpenServer(std::string serverIp
     ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     if (ListenSocket == INVALID_SOCKET)
     {
-        WSACleanup();
-        return Error(-1, "Error at socket(): " + std::to_string(WSAGetLastError()));
+        return ConnectionResult::CreateError(-1, "Error at socket(): " + std::to_string(WSAGetLastError()));
     }
 
     GlobalOutput::WriteLocked("Binding...", true);
@@ -205,10 +203,10 @@ std::optional<winsockutils::Error> winsockutils::OpenServer(std::string serverIp
     iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult == SOCKET_ERROR)
     {
+        std::string error = "bind failed: " + std::to_string(WSAGetLastError());
         freeaddrinfo(result);
         closesocket(ListenSocket);
-        WSACleanup();
-        return Error(-1, "bind failed with error: " + std::to_string(WSAGetLastError()));
+        return ConnectionResult::CreateError(-1, error);
     }
 
     freeaddrinfo(result);
@@ -218,45 +216,44 @@ std::optional<winsockutils::Error> winsockutils::OpenServer(std::string serverIp
     // Listen on the socket
     if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR)
     {
+        std::string error = "listen failed with error: " + std::to_string(WSAGetLastError());
         closesocket(ListenSocket);
-        WSACleanup();
-        return Error(-1, "Listen failed with error: " + std::to_string(WSAGetLastError()));
+        return ConnectionResult::CreateError(-1, error);
     }
 
     SOCKET ClientSocket = INVALID_SOCKET;
 
     // Accept a client socket
-    ClientSocket = accept(ListenSocket, NULL, NULL);
+    struct sockaddr_in sa = { 0 }; /* for TCP/IP */
+    socklen_t socklen = sizeof sa;
+    ClientSocket = accept(ListenSocket, (struct sockaddr*)&sa, &socklen);
     if (ClientSocket == INVALID_SOCKET)
     {
+        std::string error = "accept failed: " + std::to_string(WSAGetLastError());
         closesocket(ListenSocket);
-        WSACleanup();
-        return Error(-1, "accept failed: " + std::to_string(WSAGetLastError()));
+        return ConnectionResult::CreateError(-1, error);
     }
+
+    GlobalOutput::WriteLocked([&sa]() {
+		std::wcout << L"Accepted connection from " << inet_ntoa(sa.sin_addr) << std::endl;
+		});
 
     // No longer need server socket
     closesocket(ListenSocket);
 
-
     GlobalOutput::WriteLocked("Accepted connection!", true);
 
-    // Clean up
-    closesocket(ClientSocket);
-    WSACleanup();
-
-    return std::nullopt;
+	return ConnectionResult::CreateSuccess(ClientSocket);
 }
 
-std::optional<winsockutils::Error> winsockutils::OpenClient(std::string serverIp, std::string localIp, uint32_t port)
+winsockutils::ConnectionResult winsockutils::OpenClient(std::string serverIp, std::string localIp, uint32_t port)
 {
     // Create a socket
     SOCKET ConnectSocket = INVALID_SOCKET;
     ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (ConnectSocket == INVALID_SOCKET)
     {
-        std::string error = "Error at socket(): " + std::to_string(WSAGetLastError());
-        WSACleanup();
-        return Error(-1, error);
+        return ConnectionResult::CreateError(-1, "Error at socket(): " + std::to_string(WSAGetLastError()));
     }
 
     // Bind the socket to a specific network interface
@@ -267,9 +264,9 @@ std::optional<winsockutils::Error> winsockutils::OpenClient(std::string serverIp
 
     if (bind(ConnectSocket, (sockaddr*)&localAddress, sizeof(localAddress)) == SOCKET_ERROR)
     {
+        std::string error = "Bind failed: " + std::to_string(WSAGetLastError());
         closesocket(ConnectSocket);
-        WSACleanup();
-        return Error(-1, "Bind failed: " + std::to_string(WSAGetLastError()));
+        return ConnectionResult::CreateError(-1, error);
     }
 
     // Resolve the server address and port
@@ -286,15 +283,48 @@ std::optional<winsockutils::Error> winsockutils::OpenClient(std::string serverIp
     {
         std::string error = "Unable to connect to server: " + std::to_string(WSAGetLastError());
         closesocket(ConnectSocket);
-        WSACleanup();
-        return Error(-1, error);
+        return ConnectionResult::CreateError(-1, error);
     }
 
 	GlobalOutput::WriteLocked("Connected to server!", true);
 
-    // Clean up
-    closesocket(ConnectSocket);
-    WSACleanup();
+    return ConnectionResult::CreateSuccess(ConnectSocket);
+}
+
+void winsockutils::CloseSocketAndCleanUp(SOCKET socket)
+{
+	closesocket(socket);
+	WSACleanup();
+}
+
+std::optional<winsockutils::WinSockUtilsError> winsockutils::Send(SOCKET socket, std::string message)
+{
+	int iResult = send(socket, message.c_str(), static_cast<int>(message.size()), 0);
+	if (iResult == SOCKET_ERROR)
+	{
+		return WinSockUtilsError(-1, "send failed: " + std::to_string(WSAGetLastError()));
+	}
 
     return std::nullopt;
+}
+
+std::optional<winsockutils::WinSockUtilsError> winsockutils::Recv(SOCKET socket)
+{
+	char buffer[512];
+	int iResult = recv(socket, buffer, sizeof(buffer), 0);
+	if (iResult > 0)
+	{
+		std::string receivedMessage(buffer, iResult);
+		GlobalOutput::WriteLocked("Received message: " + receivedMessage, true);
+	}
+	else if (iResult == 0)
+	{
+		return WinSockUtilsError(-1, "Connection closed");
+	}
+	else
+	{
+		return WinSockUtilsError(-1, "recv failed: " + std::to_string(WSAGetLastError()));
+	}
+
+	return std::nullopt;
 }

@@ -146,15 +146,15 @@ void ConnectWinSock()
         return;
     }
 
-    std::optional<winsockutils::Error> openClientError = winsockutils::OpenClient(winrt::to_string(serverIp.value()), localAddr.value(), winSockPort);
+    winsockutils::ConnectionResult openClientResult = winsockutils::OpenClient(winrt::to_string(serverIp.value()), localAddr.value(), winSockPort);
 
-    if (openClientError.has_value())
+    if (!openClientResult.success)
     {
         GlobalOutput::WriteLocked(
             "OpenServer failed: " +
-            std::to_string(openClientError->code) +
+            std::to_string(openClientResult.error.errorCode) +
             " - " +
-            openClientError->message);
+            openClientResult.error.errorMessage);
         return;
     }
     else
@@ -162,6 +162,8 @@ void ConnectWinSock()
         GlobalOutput::WriteLocked([]() {
             std::wcout << L"Connected to server at " << serverIp->c_str() << " on port " << winSockPort << std::endl;
             });
+
+        winsockutils::CloseSocketAndCleanUp(openClientResult.socket.value());
     }
 }
 
@@ -170,14 +172,14 @@ int main()
     init_apartment();
 
     // Initialize WinSock
-    std::optional<winsockutils::Error> initError = winsockutils::InitializeWinSock();
+    std::optional<winsockutils::WinSockUtilsError> initError = winsockutils::InitializeWinSock();
     if (initError.has_value())
     {
         GlobalOutput::WriteLocked(
             "WSAStartup failed: " +
-            std::to_string(initError->code) +
+            std::to_string(initError->errorCode) +
             " - " +
-            initError->message);
+            initError->errorMessage);
         return 1;
     }
 
@@ -185,6 +187,7 @@ int main()
     std::vector<winrt::hstring> requestProperties;
     requestProperties.push_back(L"System.Devices.WiFiDirect.InformationElements");
 
+    // This line might freak out the linter. Ignore it. It works anyway.
     DeviceWatcher deviceWatcher = DeviceInformation::CreateWatcher(deviceSelector, requestProperties);
 
     deviceWatcher.Added(OnDeviceAdded);

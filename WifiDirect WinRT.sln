@@ -17,6 +17,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SharedWinSock", "SharedWinS
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SharedGeneral", "SharedGeneral\SharedGeneral.vcxitems", "{883FD523-C950-4361-800C-3027A51FEE04}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReadWriteClient", "ReadWriteClient\ReadWriteClient.vcxproj", "{00BF0A1D-AC03-473E-B769-7516F67209FF}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReadWriteServer", "ReadWriteServer\ReadWriteServer.vcxproj", "{157AF835-D9D8-4FDF-BABC-1F24E5DBF9FF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -57,6 +61,22 @@ Global
 		{4CAE3244-6592-4AD3-96C3-585772DCA3F2}.Release|x64.Build.0 = Release|x64
 		{4CAE3244-6592-4AD3-96C3-585772DCA3F2}.Release|x86.ActiveCfg = Release|Win32
 		{4CAE3244-6592-4AD3-96C3-585772DCA3F2}.Release|x86.Build.0 = Release|Win32
+		{00BF0A1D-AC03-473E-B769-7516F67209FF}.Debug|x64.ActiveCfg = Debug|x64
+		{00BF0A1D-AC03-473E-B769-7516F67209FF}.Debug|x64.Build.0 = Debug|x64
+		{00BF0A1D-AC03-473E-B769-7516F67209FF}.Debug|x86.ActiveCfg = Debug|Win32
+		{00BF0A1D-AC03-473E-B769-7516F67209FF}.Debug|x86.Build.0 = Debug|Win32
+		{00BF0A1D-AC03-473E-B769-7516F67209FF}.Release|x64.ActiveCfg = Release|x64
+		{00BF0A1D-AC03-473E-B769-7516F67209FF}.Release|x64.Build.0 = Release|x64
+		{00BF0A1D-AC03-473E-B769-7516F67209FF}.Release|x86.ActiveCfg = Release|Win32
+		{00BF0A1D-AC03-473E-B769-7516F67209FF}.Release|x86.Build.0 = Release|Win32
+		{157AF835-D9D8-4FDF-BABC-1F24E5DBF9FF}.Debug|x64.ActiveCfg = Debug|x64
+		{157AF835-D9D8-4FDF-BABC-1F24E5DBF9FF}.Debug|x64.Build.0 = Debug|x64
+		{157AF835-D9D8-4FDF-BABC-1F24E5DBF9FF}.Debug|x86.ActiveCfg = Debug|Win32
+		{157AF835-D9D8-4FDF-BABC-1F24E5DBF9FF}.Debug|x86.Build.0 = Debug|Win32
+		{157AF835-D9D8-4FDF-BABC-1F24E5DBF9FF}.Release|x64.ActiveCfg = Release|x64
+		{157AF835-D9D8-4FDF-BABC-1F24E5DBF9FF}.Release|x64.Build.0 = Release|x64
+		{157AF835-D9D8-4FDF-BABC-1F24E5DBF9FF}.Release|x86.ActiveCfg = Release|Win32
+		{157AF835-D9D8-4FDF-BABC-1F24E5DBF9FF}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -65,6 +85,10 @@ Global
 		SolutionGuid = {30AA02A4-36E9-47FD-9C75-C34976843160}
 	EndGlobalSection
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		SharedGeneral\SharedGeneral.vcxitems*{00bf0a1d-ac03-473e-b769-7516f67209ff}*SharedItemsImports = 4
+		SharedWinSock\SharedWinSock.vcxitems*{00bf0a1d-ac03-473e-b769-7516f67209ff}*SharedItemsImports = 4
+		SharedGeneral\SharedGeneral.vcxitems*{157af835-d9d8-4fdf-babc-1f24e5dbf9ff}*SharedItemsImports = 4
+		SharedWinSock\SharedWinSock.vcxitems*{157af835-d9d8-4fdf-babc-1f24e5dbf9ff}*SharedItemsImports = 4
 		Shared\Shared.vcxitems*{4a4f05b0-5af2-4996-98b6-2bb93bd5ab40}*SharedItemsImports = 9
 		SharedGeneral\SharedGeneral.vcxitems*{4cae3244-6592-4ad3-96c3-585772dca3f2}*SharedItemsImports = 4
 		SharedWinSock\SharedWinSock.vcxitems*{4cae3244-6592-4ad3-96c3-585772dca3f2}*SharedItemsImports = 4

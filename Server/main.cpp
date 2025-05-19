@@ -1,4 +1,8 @@
 ﻿#include "pch.h"
+
+// WinRT includes
+// If you ever find weird link issues, it might be that you didn't include the specific WinRT header file
+// Everything will show up fine, as I think most things are defined in some base headers, but some impls will just be missed
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Devices.WiFiDirect.h>
@@ -7,6 +11,8 @@
 #include <winrt/Windows.Devices.Enumeration.h>
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.Security.Credentials.h>
+
+
 #include <iostream>
 #include <sstream>
 
@@ -33,7 +39,7 @@ using namespace Windows::Security::Credentials;
 
 using namespace std::chrono_literals;
 
-StreamSocketListener listener;
+StreamSocketListener listener; // This object has to live until the end of the program otherwise things will break apart, thus keep it global
 std::thread listeningThread;
 std::shared_ptr<bool> shouldClose = std::make_shared<bool>(false);
 std::optional<SocketReaderWriter> sockReadWrite;
@@ -46,6 +52,7 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
         std::wcout << L"Trying to pair with: " << connectionRequest.DeviceInformation().Name().c_str() << std::endl;
         });
 
+    // Pairing is pretty similar between server and client, thus it is done in shared code
     co_await Pairing::PairIfNeeded(connectionRequest.DeviceInformation());
 
     GlobalOutput::WriteLocked([&connectionRequest]() {
@@ -64,7 +71,6 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
         co_return;
     }
 	
-
     wfdDevice.ConnectionStatusChanged([](WiFiDirectDevice const& sender, auto const& args) {
         uint32_t status = static_cast<uint32_t>(sender.ConnectionStatus());
         GlobalOutput::WriteLocked([&status]() { std::cout << "Connection status changed: " << status << "\n"; });
@@ -103,20 +109,21 @@ IAsyncAction OnConnectionRequested(WiFiDirectConnectionListener const &sender, W
 
     winrt::hstring serverIp = endpointPairs.GetAt(0).LocalHostName().DisplayName();
 
-    std::optional<winsockutils::Error> openServerError = winsockutils::OpenServer(winrt::to_string(serverIp), winSockPort);
+    winsockutils::ConnectionResult openServerResult = winsockutils::OpenServer(winrt::to_string(serverIp), winSockPort);
 
-    if (openServerError.has_value())
+    if (!openServerResult.success)
     {
         GlobalOutput::WriteLocked(
             "OpenServer failed: " +
-            std::to_string(openServerError->code) +
+            std::to_string(openServerResult.error.errorCode) +
             " - " +
-            openServerError->message);
+            openServerResult.error.errorMessage);
         co_return;
     }
     else
     {
         GlobalOutput::WriteLocked("OpenServer succeeded");
+        winsockutils::CloseSocketAndCleanUp(openServerResult.socket.value());
     }
 }
 
@@ -124,14 +131,14 @@ int main()
 {
     init_apartment();
 
-    std::optional<winsockutils::Error> initError = winsockutils::InitializeWinSock();
+    std::optional<winsockutils::WinSockUtilsError> initError = winsockutils::InitializeWinSock();
     if (initError.has_value())
     {
 		GlobalOutput::WriteLocked(
             "WSAStartup failed: " +
-            std::to_string(initError->code) +
+            std::to_string(initError->errorCode) +
             " - " +
-            initError->message);
+            initError->errorMessage);
         return 1;
     }
 
@@ -139,11 +146,25 @@ int main()
 
     // Set the preferred pairing procedure
     WiFiDirectConnectionParameters connectionParams;
-    connectionParams.PreferredPairingProcedure(WiFiDirectPairingProcedure::GroupOwnerNegotiation);
+    connectionParams.PreferredPairingProcedure(WiFiDirectPairingProcedure::GroupOwnerNegotiation); // We want to be the group owner, so we don't want Invitation mode
+	connectionParams.GroupOwnerIntent(15); // Set the highst intent to be the group owner (0 - 15)
+	connectionParams.PreferenceOrderedConfigurationMethods().Clear(); // We only want PushButton as this allows for the most seamless operation
+    connectionParams.PreferenceOrderedConfigurationMethods().Append(WiFiDirectConfigurationMethod::PushButton);
 
-    //publisher.Advertisement().IsAutonomousGroupOwnerEnabled(true);
-    publisher.Advertisement().IsAutonomousGroupOwnerEnabled(false);
+    // Legacy settings for testing purpose. Should not be used in the optimal case
+    //publisher.Advertisement().LegacySettings().Ssid(L"DIRECT-MrLinkNetwork");
+    publisher.Advertisement().LegacySettings().Ssid(L"DIRECT-Meta-9x8f");
+    PasswordCredential credential;
+    //credential.UserName(L"testUser");
+    credential.Password(L"tempPass");
+    publisher.Advertisement().LegacySettings().Passphrase(credential);
+	publisher.Advertisement().LegacySettings().IsEnabled(true);
 
+	// No idea what this does - copied from sample
+    publisher.Advertisement().IsAutonomousGroupOwnerEnabled(true);
+    //publisher.Advertisement().IsAutonomousGroupOwnerEnabled(false);
+
+    // Also never investigated this - copied from sample
     //publisher.Advertisement().ListenStateDiscoverability(WiFiDirect::WiFiDirectAdvertisementListenStateDiscoverability::None);
     publisher.Advertisement().ListenStateDiscoverability(WiFiDirectAdvertisementListenStateDiscoverability::Normal);
     //publisher.Advertisement().ListenStateDiscoverability(WiFiDirect::WiFiDirectAdvertisementListenStateDiscoverability::Intensive);
@@ -153,7 +174,7 @@ int main()
             GlobalOutput::WriteLocked([&args]() { std::wcout << L"Advertisement status: " << static_cast<int32_t>(args.Status()) << std::endl; });
         });
 
-    // Add publisher IE
+    // Add publisher IE if needed. Currently not, so leave empty
     //WiFiDirectInformationElement IE;
 
     //param::hstring IE_String = L"IE_String";
@@ -180,9 +201,11 @@ int main()
 
     //publisher.Advertisement().InformationElements().Append(IE);
 
+	// Setup the listener to handle incoming connections
     WiFiDirectConnectionListener listener;
     listener.ConnectionRequested(OnConnectionRequested);
 
+    // Start advertising
     publisher.Start();
     GlobalOutput::WriteLocked(L"Started WiFi Direct advertisement...\n");
 

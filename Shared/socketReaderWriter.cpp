@@ -61,6 +61,14 @@ void SocketReaderWriter::ReadMessage()
             {
                 return;
             }
+
+            if (task.Status() == AsyncStatus::Canceled) {
+                std::wcout << "Read operation was canceled." << std::endl;
+            }
+
+            if (task.Status() == AsyncStatus::Error) {
+                std::wcout << "Read operation failed." << std::endl;
+            }
 		}
 
         unsigned int bytesInBuffer = task.get();
@@ -81,7 +89,8 @@ void SocketReaderWriter::ReadMessage()
 						if (readBytes > 0)
 						{
 							readBytesOfStr += readBytes;
-							std::wcout << _socketReader.ReadString(readBytes).c_str();
+                            auto msg = _socketReader.ReadString(readBytes);
+							std::wcout << msg.c_str();
 						}
 						else
 						{
