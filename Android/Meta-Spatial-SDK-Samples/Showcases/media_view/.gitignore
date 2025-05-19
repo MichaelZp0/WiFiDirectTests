@@ -1,0 +1,14 @@
+*.iml
+.gradle
+.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+datadog-ci.json
+private/
+
+# IDEA shared
+!.idea/copyright/**
